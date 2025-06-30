@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "simtoy"  # PyPI 包名（建议用短横线命名）
+version = "0.1.0"
+description = "A simple Python library"
+authors = [{ name = "Your Name", email = "your.email@example.com" }]
+dependencies = []
+requires-python = ">=3.7"
+
+[project.optional-dependencies]
+dev = []  # 开发依赖
+test = []
+
+[project.urls]
+Homepage = "https://github.com/yourusername/my-library"
+Documentation = "https://github.com/yourusername/my-library#readme"
