@@ -3,7 +3,7 @@ gi.require_version("Gtk", "4.0")
 from gi.repository import GLib, Gtk, GObject, Gio, Gdk
 
 @Gtk.Template(filename='ui/panel.ui')
-class Panel (Gtk.ScrolledWindow):
+class Panel (Gtk.Paned):
     __gtype_name__ = "Panel"
     provider = Gtk.CssProvider.new()
 

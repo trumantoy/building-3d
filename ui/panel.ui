@@ -1,23 +1,54 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <interface>
-    <template class="Panel" parent="GtkScrolledWindow">
-        <property name="hscrollbar-policy">never</property>
+    <template class="Panel" parent="GtkPaned">
+        <!-- 设置为水平分隔，若要垂直分隔，将值改为 vertical -->
+        <property name="orientation">vertical</property>
+        <property name="position">300</property>
+        <property name="wide-handle">True</property>
+        <property name="margin-start">5</property>
+        <property name="margin-end">5</property>
+
         <child>
-            <object class="GtkListBox">
-                <style>
-                    <class name="rich-list" />
-                </style>
-                <property name="selection-mode">none</property>
-                <property name="show-separators">1</property>
+            <object class="GtkBox">
+                <property name="orientation">vertical</property>
                 <child>
                     <object class="GtkLabel">
                         <property name="label">&lt;b&gt;场景&lt;/b&gt;</property>
                         <property name="use-markup">True</property>
-                        <property name="hexpand">True</property>
+                        <property name="margin-top">10</property>
+                        <property name="margin-bottom">10</property>
                     </object>
                 </child>
                 <child>
-                    <object class="GtkListView" id="geoms">
+                    <object class="GtkSeparator">
+                        <property name="orientation">horizontal</property>
+                    </object>
+                </child>
+                <child>
+                    <object class="GtkScrolledWindow">
+                        <child>
+                            <object class="GtkListView" id="geoms">
+                                <property name="vexpand">True</property>
+                            </object>
+                        </child>
+                    </object>
+                </child>
+            </object>
+        </child>
+        <child>
+            <object class="GtkScrolledWindow">
+                <child>
+                    <object class="GtkListBox">
+                        <style>
+                            <class name="rich-list"></class>
+                        </style>
+                        <property name="selection-mode">none</property>
+                        <property name="vexpand">True</property>
+                        <child>
+                            <object class="GtkLabel">
+                                <property name="label">矩形</property>
+                            </object>
+                        </child>
                     </object>
                 </child>
             </object>
