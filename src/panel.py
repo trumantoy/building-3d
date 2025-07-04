@@ -8,8 +8,12 @@ class Panel (Gtk.Paned):
     provider = Gtk.CssProvider.new()
 
     geoms = Gtk.Template.Child('geoms')
+    roofcolor = Gtk.Template.Child('roofcolor')
+    roomcolor = Gtk.Template.Child('roomcolor')
     
     def __init__(self):
+        Gtk.StyleContext.add_provider_for_display(self.get_display(),self.provider,Gtk.STYLE_PROVIDER_PRIORITY_USER)
+
         self.model = Gtk.StringList()
         selection_model = Gtk.SingleSelection.new(self.model)
         factory = Gtk.SignalListItemFactory()
@@ -19,7 +23,23 @@ class Panel (Gtk.Paned):
         
         self.geoms.set_model(selection_model)
         self.geoms.set_factory(factory)
-    
+
+        self.roofcolor.set_dialog(Gtk.ColorDialog())
+        self.roomcolor.set_dialog(Gtk.ColorDialog())
+
+    @Gtk.Template.Callback()
+    def geom_activated(self,sender, i):
+        item = sender.get_model().get_item(i)
+        print(item)
+        
+    @Gtk.Template.Callback()
+    def roofcolor_activated(self,sender,*args):
+        print('11')
+
+    @Gtk.Template.Callback()
+    def roomcolor_activated(self,sender,*args):
+        print('2')
+
     def add(self, text):
         self.model.append(text)
 
@@ -28,9 +48,18 @@ class Panel (Gtk.Paned):
         box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
         
         # 创建图标（使用默认的文件夹图标）
-        icon = Gtk.Image.new_from_icon_name("line-symbolic")
-        icon.set_icon_size(Gtk.IconSize.LARGE)
-        
+        icon = Gtk.ToggleButton()
+        icon.set_icon_name("display-brightness-symbolic")
+        icon.set_has_frame(False)
+        css = """
+            .borderless-toggle-button {
+                background: none;
+            }
+            """
+        self.provider.load_from_data(css)
+        icon.get_style_context().add_class("borderless-toggle-button")
+        icon.connect("toggled", self.on_toggle_active)
+
         # 创建标签
         label = Gtk.Label()
         label.set_halign(Gtk.Align.START)
@@ -51,11 +80,12 @@ class Panel (Gtk.Paned):
         string_obj = list_item.get_item()
         text = string_obj.get_string()
         label.set_label(text)
-        
-        # 根据文本设置不同的图标
-        if "点" in text:
-            icon.set_from_icon_name("content-loading-symbolic")
-        elif '线' in text:
-            icon.set_from_icon_name("list-remove-symbolic")
+
+    def on_toggle_active(self,sender):
+        if sender.get_active():
+            # 激活状态时的图标
+            sender.set_icon_name("")
         else:
-            icon.set_from_icon_name("media-playback-stop")
+            # 非激活状态时的图标
+            sender.set_icon_name("display-brightness-symbolic")
+    

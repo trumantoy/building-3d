@@ -12,7 +12,7 @@ from panel import *
 @Gtk.Template(filename='ui/actionbar.ui')
 class Actionbar (Gtk.ScrolledWindow):
     __gtype_name__ = "Actionbar"
-
+    
     def __init__(self):
         provider = Gtk.CssProvider.new()
         provider.load_from_path('ui/actionbar.css')

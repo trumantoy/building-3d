@@ -121,7 +121,7 @@ class AppWindow (Gtk.ApplicationWindow):
             self.content.to_file(file.get_path())
         dialog.save(None, None, select_file) 
 
-    def file_import(self,sender, *args):
+    def file_import(self, sender, args, geom_panel):
         dialog = Gtk.FileDialog()
         dialog.set_modal(True)
 
@@ -145,10 +145,12 @@ class AppWindow (Gtk.ApplicationWindow):
             aabb = content.get_bounding_box()
             content.local.z = aabb[1][2]
             self.editor.add(content)
+
             file_path = file.get_path()
             file_path = Path(file_path).as_posix()
-            print(file_path)
             content.set_from_file(file_path)
+
+            geom_panel.add('点云-'+str(content.id))
 
         dialog.open(None, None, select_file)
 
