@@ -1,13 +1,12 @@
+import gi
+gi.require_version("Gtk", "4.0")
+from gi.repository import GLib, Gtk, Gio
+
 import time
 import cairo
 import numpy as np
 import pygfx as gfx
 from pathlib import Path
-
-import gi
-gi.require_version("Gtk", "4.0")
-from gi.repository import GLib, Gtk, Gio
-
 
 from simtoy import *
 from panel import *
@@ -40,10 +39,10 @@ class AppWindow (Gtk.ApplicationWindow):
         self.view_controller.add_camera(self.persp_camera)
         self.view_controller.add_camera(self.ortho_camera)
 
-        geom_panel = self.stack.get_visible_child()
+        self.geom_panel = self.stack.get_visible_child()
         self.widget.set_draw_func(self.draw, self.editor)
         self.viewbar.set_controller(self.view_controller)
-        self.hotbar.set_viewbar(self.widget, self.viewbar, geom_panel, self.editor)
+        self.hotbar.set_viewbar(self.widget, self.viewbar, self.geom_panel, self.editor)
 
         action = Gio.SimpleAction.new('import', None)
         action.connect('activate', self.file_import)
@@ -121,7 +120,7 @@ class AppWindow (Gtk.ApplicationWindow):
             self.content.to_file(file.get_path())
         dialog.save(None, None, select_file) 
 
-    def file_import(self, sender, args, geom_panel):
+    def file_import(self, sender, args):
         dialog = Gtk.FileDialog()
         dialog.set_modal(True)
 
@@ -150,7 +149,7 @@ class AppWindow (Gtk.ApplicationWindow):
             file_path = Path(file_path).as_posix()
             content.set_from_file(file_path)
 
-            geom_panel.add('点云-'+str(content.id))
+            self.geom_panel.add('点云-'+str(content.id), content)
 
         dialog.open(None, None, select_file)
 

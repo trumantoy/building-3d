@@ -29,8 +29,6 @@
                         <child>
                             <object class="GtkListView" id="geoms">
                                 <property name="vexpand">True</property>
-                                <property name="single-click-activate">True</property>
-                                <signal name="activate" handler="geom_activated" swapped="no"/>
                             </object>
                         </child>
                     </object>
@@ -43,11 +41,13 @@
                     <object class="GtkBox">
                         <property name="orientation">vertical</property>
                         <property name="spacing">10</property>
+                        <property name="margin-top">10</property>
+                        <property name="margin-bottom">10</property>
                         <child>
                             <object class="GtkExpander" id="position">
+                                <property name="visible">False</property>
                                 <property name="label">位置</property>
                                 <child>
-
                                     <object class="GtkListBox">
                                         <style>
                                             <class name="rich-list"></class>
@@ -73,12 +73,13 @@
                                                             <object class="GtkAdjustment">
                                                             <property name="lower">-1000</property>
                                                             <property name="upper">1000</property>
-                                                            <property name="step_increment">0.001</property>
+                                                            <property name="step_increment">1.000</property>
                                                             <property name="page_increment">1</property>
                                                             <property name="page_size">0</property>
                                                             </object>
                                                         </property>
                                                         <property name="climb_rate">1</property>
+                                                        <signal name="value-changed" handler="x_value_changed"/>
                                                     </object>
                                                 </child>
                                             </object>
@@ -102,12 +103,13 @@
                                                             <object class="GtkAdjustment">
                                                             <property name="lower">-1000</property>
                                                             <property name="upper">1000</property>
-                                                            <property name="step_increment">0.001</property>
+                                                            <property name="step_increment">1.000</property>
                                                             <property name="page_increment">1</property>
                                                             <property name="page_size">0</property>
                                                             </object>
                                                         </property>
                                                         <property name="climb_rate">1</property>
+                                                        <signal name="value-changed" handler="y_value_changed"/>
                                                     </object>
                                                 </child>
                                             </object>
@@ -131,12 +133,13 @@
                                                             <object class="GtkAdjustment">
                                                             <property name="lower">-1000</property>
                                                             <property name="upper">1000</property>
-                                                            <property name="step_increment">0.001</property>
+                                                            <property name="step_increment">1.000</property>
                                                             <property name="page_increment">1</property>
                                                             <property name="page_size">0</property>
                                                             </object>
                                                         </property>
                                                         <property name="climb_rate">1</property>
+                                                        <signal name="value-changed" handler="z_value_changed"/>
                                                     </object>
                                                 </child>
                                             </object>
@@ -150,6 +153,7 @@
 
                         <child>
                             <object class="GtkExpander" id="color">
+                                <property name="visible">False</property>
                                 <property name="label">颜色</property>
                                 <child>
                                     <object class="GtkListBox">
