@@ -156,18 +156,11 @@ fn fs_main(varyings: Varyings) -> FragmentOutput {
 }
 '''
 
-class PointCloud(gfx.Mesh):
+class PointCloud(gfx.Points):
     name = '点云'
     
-    def __init__(self):
-        super().__init__(gfx.box_geometry(1,1,1),gfx.MeshBasicMaterial(opacity=0.2))
-
-        positions = np.random.uniform(-0.5, 0.5, (100000, 3)).astype(np.float32)
-        geometry = gfx.Geometry(positions=positions)
-        material = MyMaterial()
-        self.points = gfx.Points(geometry,material)
-        self.add(self.points)
-        self.set_bounding_box_visible(False)
+    def __init__(self,*args,**kwargs):
+        super().__init__(*args,**kwargs)
 
     def step(self,dt):
         pass
@@ -202,21 +195,18 @@ class PointCloud(gfx.Mesh):
             # 转换为 RGB 颜色
             colors = np.array([colorsys.hsv_to_rgb(h, saturation, value) for h in hsv_hues], dtype=np.float32)
 
-        self.remove(self.points)
-        geometry = gfx.Geometry(positions=positions.astype(np.float32), colors=colors)
-        material = gfx.PointsMaterial(color_mode="vertex", size=2)
-        self.points = gfx.Points(geometry,material)
-        self.add(self.points)
+        self.geometry = gfx.Geometry(positions=positions.astype(np.float32), colors=colors)
+        self.material = gfx.PointsMaterial(color_mode="vertex", size=1)
 
-    def set_bounding_box_visible(self, visible : bool):
-        self.material.opacity = 0.2 if visible else 0.0
+    # def set_bounding_box_visible(self, visible : bool):
+    #     self.material.opacity = 0.2 if visible else 0.0
     
-    def set_height(self,height):
-        self.geometry = gfx.box_geometry(1,1,height)
-        self.geometry.positions.data[:,2] += -(1 - height) / 2
+    # def set_height(self,height):
+    #     self.geometry = gfx.box_geometry(1,1,height)
+    #     self.geometry.positions.data[:,2] += -(1 - height) / 2
 
-        self.points.material.uniform_buffer.data['height'] = height
-        self.points.material.uniform_buffer.update_full()
+    #     self.points.material.uniform_buffer.data['height'] = height
+    #     self.points.material.uniform_buffer.update_full()
     
     @staticmethod
     def ray_box_intersection(O, D, min_point, max_point):
@@ -265,6 +255,30 @@ class PointCloud(gfx.Mesh):
         if not intersections: return None
         intersections.sort(key=lambda x: np.linalg.norm(x[1] - origin))
         return intersections[0]
+    
+class Building(gfx.Mesh):
+    def __init__(self,*args,**kwargs):
+        super().__init__(*args,**kwargs)
+
+        self.assessment = 0
+        
+    def step(self,dt):
+        pass
+
+    def update_assessment(self, assessment):
+        self.assessment = assessment
+
+        self.assessment_text = gfx.Text(
+            markdown=str(assessment),
+            screen_space=True,
+            font_size=20,
+            anchor="top-center",
+            material=gfx.TextMaterial(color="#0f4"),
+        )
+
+        self.assessment_text.local.position = [0,0,0]
+        self.add(self.assessment_text)
+
 
 class Triangle(gfx.Mesh):
     name = '三角形'

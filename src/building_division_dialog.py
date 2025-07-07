@@ -34,58 +34,54 @@ class BuildingDivisionDialog (Gtk.Window):
         bar.set_show_title_buttons(False)
         self.set_titlebar(bar)
     
-    def set_point_cloud(self, pcs : List[PointCloud]):
+    def input(self, pcs : List[PointCloud]):
         if not pcs: return
         self.points = []
 
-        GLib.idle_add(self.task, pcs, 0)
+        positions = []
+        for pc in pcs: 
+            positions.append(pc.geometry.positions.data + pc.local.position)
+        pc = np.vstack(positions).astype(np.float32)
 
-    def task(self,pcs : List[PointCloud],i):
-        if i == len(pcs): 
+        self.progress.set_fraction(0)
+
+        # working_directory = '../pc_seg'
+        working_directory = 'algorithm'
+        
+        input_file = 'input/to_divide.npy'
+        np.save(os.path.join(working_directory, input_file), pc)
+
+        # pyinstaller.exe divide.py --contents-directory _divide
+        # p = sp.Popen(["c:/Users/SLTru/AppData/Local/Programs/Python/Python312/python.exe","../pc_seg/divide.py",temp_file_path],stdin=sp.PIPE,stdout=sp.PIPE,encoding='utf-8', cwd=working_directory)
+        p = sp.Popen([f'{working_directory}/divide.exe',input_file],stdin=sp.PIPE,stdout=sp.PIPE,encoding='utf-8',text=True,cwd=working_directory)
+        
+        self.working_directory = working_directory
+        GLib.idle_add(self.divide, p, None, 1)
+
+    def divide(self,p : sp.Popen, count, j):
+        line = p.stdout.readline().strip()
+        if not line and p.poll() is not None:         
             self.close()
             return
 
-        fraction = i / len(pcs)
-        self.progress.set_fraction(fraction)
-
-        pc = pcs[i]
-        working_directory = '../pc_seg'
-        temp_file_path = os.path.join(working_directory, 'input', f'{i}.npy')
-
-        data = pc.points.geometry.positions.data + pc.local.position
-        np.save(temp_file_path, data.astype(np.float32))
-
-        p = sp.Popen(["c:/Users/SLTru/AppData/Local/Programs/Python/Python312/python.exe","../pc_seg/divide.py",temp_file_path],stdin=sp.PIPE,stdout=sp.PIPE,encoding='utf-8', cwd=working_directory)
-        
-        # working_directory = 'algorithm'
-        # p = sp.Popen([f'{working_directory}/divide.exe',temp_file_path],stdin=sp.PIPE,stdout=sp.PIPE,encoding='utf-8',text=True,cwd=working_directory)
-        
-        self.working_directory = working_directory
-        GLib.idle_add(self.divide, pcs, i, p, None, 1)
-
-    def divide(self,pcs : List[np.ndarray], i,p : sp.Popen, count,j):
-        line = p.stdout.readline().strip()
-        if not line and p.poll() is not None:         
-            GLib.idle_add(self.task, pcs, i+1)
-            return
-
         if not line:        
-            GLib.idle_add(self.divide, pcs,i,p,count,j)
+            GLib.idle_add(self.divide, p,count,j)
             return
-
-        print(line)
         
         if not count: 
             count = int(line)
-            GLib.idle_add(self.divide, pcs,i,p,count,j)
+            GLib.idle_add(self.divide, p,count,j)
             return
         
-        fraction = i / len(pcs) + ((j / count) / 10)
+        file_path = os.path.join(self.working_directory,line)
+        print(file_path)
+        
+        fraction = j / count
         self.progress.set_fraction(fraction)
 
-        self.points.append(np.load(os.path.join(self.working_directory,line)))
+        positions = np.load(file_path)
+        self.points.append(positions)
+        GLib.idle_add(self.divide, p,count,j+1)
 
-        GLib.idle_add(self.divide, pcs,i,p,count,j+1)
-
-    def get_point_cloud(self):
+    def output(self):
         return self.points

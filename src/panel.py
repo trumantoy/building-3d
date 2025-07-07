@@ -85,6 +85,12 @@ class Panel (Gtk.Paned):
         item.name = name
         item.obj = obj
         self.model.append(item)
+    
+    def remove(self, name):
+        for i,item in enumerate(self.model):
+            if item.name == name:
+                self.model.remove(i)
+                break
         
     def item_visible_toggled(self,sender,listviewitem):
         item = listviewitem.get_item()
@@ -106,12 +112,29 @@ class Panel (Gtk.Paned):
         if type(item.obj) == PointCloud:
             self.expander_position.set_visible(True)
             self.expander_pointcloud.set_visible(True)
+            self.expander_mesh.set_visible(False)
+        elif type(item.obj) == Building
+            self.expander_position.set_visible(True)
+            self.expander_pointcloud.set_visible(False)
             self.expander_mesh.set_visible(True)
         else:
             self.expander_position.set_visible(False)
             self.expander_pointcloud.set_visible(False)
             self.expander_mesh.set_visible(False)
+    
+    @Gtk.Template.Callback()
+    def assessment_value_changed(self, spin_button):
+        assessment = spin_button.get_value()
+
+        for item in self.model:
+            if type(item.obj) != Building:
+                continue
             
+            if item.obj.assessment >= assessment:
+                item.obj.visible = True
+            else:
+                item.obj.visible = False
+
     @Gtk.Template.Callback()
     def x_value_changed(self, spin_button):
         value = spin_button.get_value()
@@ -126,7 +149,6 @@ class Panel (Gtk.Paned):
         item = self.model.get_item(selected_index)
         item.obj.local.y = value
 
-    
     @Gtk.Template.Callback()
     def z_value_changed(self, spin_button):
         value = spin_button.get_value()
@@ -139,7 +161,7 @@ class Panel (Gtk.Paned):
         value = spin_button.get_value()
         selected_index = self.selection_model.get_selected()
         item = self.model.get_item(selected_index)
-        item.obj.points.material.size = value
+        item.obj.material.size = value
 
     @Gtk.Template.Callback()
     def roofcolor_activated(self,sender,*args):
@@ -147,4 +169,7 @@ class Panel (Gtk.Paned):
 
     @Gtk.Template.Callback()
     def roomcolor_activated(self,sender,*args):
-        print('2')
+        selected_index = self.selection_model.get_selected()
+        item = self.model.get_item(selected_index)
+        print(self.roomcolor.get_color())
+        item.obj.material.color = self.roomcolor.get_color()

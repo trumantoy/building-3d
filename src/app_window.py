@@ -141,13 +141,10 @@ class AppWindow (Gtk.ApplicationWindow):
                 return
 
             content = PointCloud()
-            aabb = content.get_bounding_box()
-            content.local.z = aabb[1][2]
-            self.editor.add(content)
-
             file_path = file.get_path()
             file_path = Path(file_path).as_posix()
             content.set_from_file(file_path)
+            self.editor.add(content)
 
             self.geom_panel.add('点云-'+str(content.id), content)
 
@@ -163,10 +160,17 @@ class AppWindow (Gtk.ApplicationWindow):
         
         from building_division_dialog import BuildingDivisionDialog
         dlg = BuildingDivisionDialog()
-        dlg.set_point_cloud(pcs)
+        dlg.input(pcs)
 
         def do_close_request(win):
-            pcs = dlg.get_point_cloud()
+            for obj in self.editor.children:
+                if type(obj) != PointCloud:
+                    continue
+
+                self.editor.remove(obj)
+                self.geom_panel.remove('点云-'+str(obj.id))
+
+            pcs = dlg.output()
             pc = np.vstack(pcs)
             z = pc[:,2]
             z_min = np.min(z)
@@ -186,56 +190,31 @@ class AppWindow (Gtk.ApplicationWindow):
                 colors = np.array([colorsys.hsv_to_rgb(h, saturation, value) for h in hsv_hues], dtype=np.float32)
 
                 geometry = gfx.Geometry(positions=pc, colors=colors)
-                material = gfx.PointsMaterial(color_mode="vertex", size=2)
-                points = gfx.Points(geometry,material)
+                material = gfx.PointsMaterial(color_mode="vertex", size=1)
+                points = PointCloud(geometry,material)
                 self.editor.add(points)
-
-            for obj in self.editor.children:
-                if type(obj) != PointCloud:
-                    continue
-
-                self.editor.remove(obj)
+                self.geom_panel.add('点云-'+str(points.id),points)
 
         dlg.connect('close_request', do_close_request)
         dlg.set_modal(True)  # 设置为模态窗口
         dlg.set_transient_for(self)  # 设置父窗口
         dlg.present()
 
-    
     def building_reconstruct(self,sender, *args):
         pcs = []
         for obj in self.editor.children:
-            if type(obj) != gfx.Points:
+            if type(obj) != PointCloud:
                 continue
-            pcs.append(obj.geometry.positions.data)
+            pcs.append(obj)
         
         from building_reconstruction_dialog import BuildingReconstructionDialog
         dlg = BuildingReconstructionDialog()
         dlg.input(pcs)
 
         def do_close_request(win):
-            wireframes = dlg.output()
-
-            for vertices, edges in wireframes:
-                 # 将顶点转换为 numpy 数组
-                obj = gfx.WorldObject()
-                vertices = np.array(vertices, dtype=np.float32)
-
-                for edge in edges:
-                    start_vertex = vertices[edge[0]]
-                    end_vertex = vertices[edge[1]]
-                    # 构建线段的顶点序列
-                    line_vertices = np.array([start_vertex, end_vertex], dtype=np.float32)
-                    # 创建几何体
-                    geometry = gfx.Geometry(positions=line_vertices)
-                    # 创建线材质
-                    material = gfx.LineMaterial(color="black", thickness=2)
-                    # 创建 Line 对象
-                    line = gfx.Line(geometry, material)
-                    # 将 Line 对象添加到编辑器
-                    obj.add(line)
-
+            for obj in dlg.output():
                 self.editor.add(obj)
+                self.geom_panel.add('网格-'+str(obj.id),obj)
 
         dlg.connect('close_request', do_close_request)
         dlg.set_modal(True)  # 设置为模态窗口
