@@ -45,15 +45,15 @@
                         <property name="margin-bottom">10</property>
                         <child>
                             <object class="GtkExpander" id="position">
+                                <property name="expanded">True</property>
                                 <property name="visible">False</property>
                                 <property name="label">位置</property>
                                 <child>
                                     <object class="GtkListBox">
-                                        <style>
-                                            <class name="rich-list"></class>
-                                        </style>
+                                        <style><class name="rich-list"></class></style>
                                         <property name="selection-mode">none</property>
                                         <property name="show-separators">1</property>
+                                        <property name="margin-top">10</property>
                                         <child>
                                             <object class="GtkBox">
                                                 <child>
@@ -152,31 +152,69 @@
                         </child>
 
                         <child>
-                            <object class="GtkExpander" id="color">
+                            <object class="GtkExpander" id="pointcloud">
+                                <property name="expanded">True</property>
                                 <property name="visible">False</property>
-                                <property name="label">颜色</property>
+                                <property name="label">点云</property>
                                 <child>
                                     <object class="GtkListBox">
                                         <style><class name="rich-list"></class></style>
                                         <property name="selection-mode">none</property>
                                         <property name="show-separators">1</property>
+                                        <property name="margin-top">10</property>
                                         <child>
                                             <object class="GtkBox">
                                                 <child>
-                                                    <object class="GtkLabel" >
-                                                        <property name="label">屋顶</property>
+                                                    <object class="GtkLabel">
+                                                        <property name="label">点大小</property>
                                                         <property name="use-markup">True</property>
                                                         <property name="xalign">0.0</property>
+                                                        <property name="width-request">100</property>
                                                     </object>
                                                 </child>
                                                 <child>
-                                                    <object class="GtkColorDialogButton" id="roofcolor">
-                                                        <signal name="notify::rgba" handler="roofcolor_activated" swapped="no"/>
+                                                    <object class="GtkSpinButton" id="point_size">
+                                                        <property name="digits">0</property>
+                                                        <property name="hexpand">True</property>
+                                                        <property name="xalign">1.0</property>
+                                                        <property name="adjustment">
+                                                            <object class="GtkAdjustment">
+                                                                <property name="lower">1</property>
+                                                                <property name="upper">10</property>
+                                                                <property name="step_increment">1.000</property>
+                                                                <property name="page_increment">1</property>
+                                                                <property name="page_size">0</property>
+                                                                <property name="value">1</property>
+                                                            </object>
+                                                        </property>
+                                                        <property name="climb_rate">1</property>
+                                                        <signal name="value-changed" handler="point_size_value_changed"/>
                                                     </object>
                                                 </child>
+                                            </object>
+                                        </child>
+                                    </object>
+                                </child>
+                            </object>
+                        </child>
+
+
+                        <child>
+                            <object class="GtkExpander" id="mesh">
+                                <property name="expanded">True</property>
+                                <property name="visible">False</property>
+                                <property name="label">网格</property>
+                                <child>
+                                    <object class="GtkListBox">
+                                        <style><class name="rich-list"></class></style>
+                                        <property name="selection-mode">none</property>
+                                        <property name="show-separators">1</property>
+                                        <property name="margin-top">10</property>
+                                        <child>
+                                            <object class="GtkBox">
                                                 <child>
                                                     <object class="GtkLabel">
-                                                        <property name="label">房屋</property>
+                                                        <property name="label">房屋色</property>
                                                         <property name="use-markup">True</property>
                                                         <property name="xalign">0.0</property>
                                                     </object>
@@ -186,12 +224,50 @@
                                                         <signal name="notify::rgba" handler="roomcolor_activated" swapped="no"/>
                                                     </object>
                                                 </child>
+
+                                                <child>
+                                                    <object class="GtkLabel" >
+                                                        <property name="label">屋顶色</property>
+                                                        <property name="use-markup">True</property>
+                                                        <property name="xalign">0.0</property>
+                                                    </object>
+                                                </child>
+                                                <child>
+                                                    <object class="GtkColorDialogButton" id="roofcolor">
+                                                        <signal name="notify::rgba" handler="roofcolor_activated" swapped="no"/>
+                                                    </object>
+                                                </child>
+
+                                                
+                                              
+                                            </object>
+                                        </child>
+
+                                        <child>
+                                            <object class="GtkBox">
+                                                <child>
+                                                    <object class="GtkLabel" >
+                                                        <property name="label">评估</property>
+                                                        <property name="use-markup">True</property>
+                                                        <property name="xalign">0.0</property>
+                                                        <property name="hexpand">True</property>
+                                                    </object>
+                                                </child>
+                                                <child>
+                                                    <object class="GtkSwitch" id="evaluate">
+                                                        <property name="margin-top">5</property>
+                                                        <property name="margin-bottom">5</property>
+                                                    </object>
+                                                </child>
                                             </object>
                                         </child>
                                     </object>
                                 </child>
+
                             </object>
                         </child>
+
+
 
                     </object>
                 </child>

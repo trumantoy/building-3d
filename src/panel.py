@@ -14,7 +14,8 @@ class Panel (Gtk.Paned):
     roofcolor = Gtk.Template.Child('roofcolor')
     roomcolor = Gtk.Template.Child('roomcolor')
     expander_position = Gtk.Template.Child('position')
-    expander_color = Gtk.Template.Child('color')
+    expander_pointcloud = Gtk.Template.Child('pointcloud')
+    expander_mesh = Gtk.Template.Child('mesh')
 
     spin_x = Gtk.Template.Child('x')
     spin_y = Gtk.Template.Child('y')
@@ -104,12 +105,13 @@ class Panel (Gtk.Paned):
 
         if type(item.obj) == PointCloud:
             self.expander_position.set_visible(True)
-            self.expander_color.set_visible(False)
-
+            self.expander_pointcloud.set_visible(True)
+            self.expander_mesh.set_visible(True)
         else:
             self.expander_position.set_visible(False)
-            self.expander_color.set_visible(False)
-
+            self.expander_pointcloud.set_visible(False)
+            self.expander_mesh.set_visible(False)
+            
     @Gtk.Template.Callback()
     def x_value_changed(self, spin_button):
         value = spin_button.get_value()
@@ -131,6 +133,13 @@ class Panel (Gtk.Paned):
         selected_index = self.selection_model.get_selected()
         item = self.model.get_item(selected_index)
         item.obj.local.z = value
+
+    @Gtk.Template.Callback()
+    def point_size_value_changed(self,spin_button):
+        value = spin_button.get_value()
+        selected_index = self.selection_model.get_selected()
+        item = self.model.get_item(selected_index)
+        item.obj.points.material.size = value
 
     @Gtk.Template.Callback()
     def roofcolor_activated(self,sender,*args):

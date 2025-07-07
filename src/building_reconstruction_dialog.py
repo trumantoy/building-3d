@@ -42,7 +42,7 @@ class BuildingReconstructionDialog (Gtk.Window):
                 np.savetxt(os.path.join(input_dir, f'{i}.xyz'), pc)
 
         # pyinstaller --collect-all=scipy --collect-all=skimage
-        p = sp.Popen([f'{working_directory}/reconstruct.exe','--dataset','tallinn','--checkpoint_path','./experiments/checkpoints/checkpoint_guangxi.pth'],stdin=sp.PIPE,stdout=sp.PIPE,encoding='utf-8',text=True,cwd=working_directory)
+        p = sp.Popen([f'{working_directory}/reconstruct.exe'],stdin=sp.PIPE,stdout=sp.PIPE,encoding='utf-8',text=True,cwd=working_directory)
         GLib.idle_add(self.reconstruct, len(pcs), 1, p)
 
     def reconstruct(self,count: int, i: int, p : sp.Popen):

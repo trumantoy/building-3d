@@ -158,7 +158,8 @@ class AppWindow (Gtk.ApplicationWindow):
         for obj in self.editor.children:
             if type(obj) != PointCloud:
                 continue
-            pcs.append(obj.points.geometry.positions.data)
+
+            pcs.append(obj)
         
         from building_division_dialog import BuildingDivisionDialog
         dlg = BuildingDivisionDialog()

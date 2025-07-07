@@ -6,6 +6,10 @@ from typing import List
 import subprocess as sp
 import tempfile
 import numpy as np
+import os
+import pygfx as gfx
+
+from simtoy import *
 
 class BuildingDivisionDialog (Gtk.Window):
     def __init__(self, *args, **kwargs):
@@ -30,13 +34,13 @@ class BuildingDivisionDialog (Gtk.Window):
         bar.set_show_title_buttons(False)
         self.set_titlebar(bar)
     
-    def set_point_cloud(self, pcs : List[np.ndarray]):
+    def set_point_cloud(self, pcs : List[PointCloud]):
         if not pcs: return
         self.points = []
 
         GLib.idle_add(self.task, pcs, 0)
 
-    def task(self,pcs : List[np.ndarray],i):
+    def task(self,pcs : List[PointCloud],i):
         if i == len(pcs): 
             self.close()
             return
@@ -45,19 +49,18 @@ class BuildingDivisionDialog (Gtk.Window):
         self.progress.set_fraction(fraction)
 
         pc = pcs[i]
+        working_directory = '../pc_seg'
+        temp_file_path = os.path.join(working_directory, 'input', f'{i}.npy')
 
-        temp_file_path = ''
-        with tempfile.NamedTemporaryFile(delete=False, suffix='.npy') as temp_file:
-            np.save(temp_file, pc)
-            print(temp_file.name)
-            temp_file_path = temp_file.name
+        data = pc.points.geometry.positions.data + pc.local.position
+        np.save(temp_file_path, data.astype(np.float32))
 
-        # working_directory = '../pc_seg'
-        # p = sp.Popen(["c:/Users/SLTru/AppData/Local/Programs/Python/Python312/python.exe","../pc_seg/divide.py",temp_file_path],stdin=sp.PIPE,stdout=sp.PIPE,encoding='utf-8', cwd=working_directory)
+        p = sp.Popen(["c:/Users/SLTru/AppData/Local/Programs/Python/Python312/python.exe","../pc_seg/divide.py",temp_file_path],stdin=sp.PIPE,stdout=sp.PIPE,encoding='utf-8', cwd=working_directory)
         
-        working_directory = 'algorithm'
-        p = sp.Popen([f'{working_directory}/divide.exe',temp_file_path],stdin=sp.PIPE,stdout=sp.PIPE,encoding='utf-8',text=True,cwd=working_directory)
-
+        # working_directory = 'algorithm'
+        # p = sp.Popen([f'{working_directory}/divide.exe',temp_file_path],stdin=sp.PIPE,stdout=sp.PIPE,encoding='utf-8',text=True,cwd=working_directory)
+        
+        self.working_directory = working_directory
         GLib.idle_add(self.divide, pcs, i, p, None, 1)
 
     def divide(self,pcs : List[np.ndarray], i,p : sp.Popen, count,j):
@@ -77,10 +80,10 @@ class BuildingDivisionDialog (Gtk.Window):
             GLib.idle_add(self.divide, pcs,i,p,count,j)
             return
         
-        fraction = i / len(pcs) + j / count
+        fraction = i / len(pcs) + ((j / count) / 10)
         self.progress.set_fraction(fraction)
 
-        self.points.append(np.load(line))
+        self.points.append(np.load(os.path.join(self.working_directory,line)))
 
         GLib.idle_add(self.divide, pcs,i,p,count,j+1)
 
