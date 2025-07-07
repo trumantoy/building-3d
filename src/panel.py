@@ -113,7 +113,7 @@ class Panel (Gtk.Paned):
             self.expander_position.set_visible(True)
             self.expander_pointcloud.set_visible(True)
             self.expander_mesh.set_visible(False)
-        elif type(item.obj) == Building
+        elif type(item.obj) == Building:
             self.expander_position.set_visible(True)
             self.expander_pointcloud.set_visible(False)
             self.expander_mesh.set_visible(True)
@@ -171,5 +171,5 @@ class Panel (Gtk.Paned):
     def roomcolor_activated(self,sender,*args):
         selected_index = self.selection_model.get_selected()
         item = self.model.get_item(selected_index)
-        print(self.roomcolor.get_color())
-        item.obj.material.color = self.roomcolor.get_color()
+        color = self.roomcolor.get_color()
+        item.obj.material.color = (color.red, color.green, color.blue)

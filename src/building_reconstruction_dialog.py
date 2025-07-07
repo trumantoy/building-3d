@@ -60,16 +60,14 @@ class BuildingReconstructionDialog (Gtk.Window):
             np.savetxt(os.path.join(roof_input_dir, f'{i}.xyz'), roof_points)           
 
         # pyinstaller --contents-directory _reconstruct --collect-all=scipy --collect-all=skimage
-        p = sp.Popen([f'{working_directory}/reconstruct.exe'],stdin=sp.PIPE,stdout=sp.PIPE,encoding='utf-8',text=True,cwd=working_directory)
+        p = sp.Popen([f'{working_directory}/reconstruct.exe'],cwd=working_directory)
         GLib.idle_add(self.reconstruct, len(pcs), p)
 
     def reconstruct(self,count: int, p : sp.Popen):
-        line = p.stdout.readline().strip()
-        if not line and p.poll() is not None:
+        if p.poll() is not None:
             self.close()
             return
 
-        print(line)
         i = len([e.name for e in os.scandir(self.building_output_dir) if e.is_file()])
 
         fraction = i / count
