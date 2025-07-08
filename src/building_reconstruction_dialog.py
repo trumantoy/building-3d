@@ -101,7 +101,7 @@ class BuildingReconstructionDialog (Gtk.Window):
             origin = np.array([np.min(x),np.min(y),0])
             x = x - np.min(x)
             y = y - np.min(y)
-            z = z - np.min(z)
+            z = 0
             pc = np.column_stack([x,y,z]) - [(x.max()-x.min())/2,(y.max()-y.min())/2,0]
             mesh.geometry.positions.data[:] = pc.astype(np.float32)
             
