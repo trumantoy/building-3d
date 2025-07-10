@@ -7,6 +7,7 @@ import cairo
 import numpy as np
 import pygfx as gfx
 from pathlib import Path
+import os
 
 from simtoy import *
 from panel import *
@@ -134,66 +135,50 @@ class AppWindow (Gtk.ApplicationWindow):
         dialog.set_filters(filters)
         dialog.set_default_filter(filter_text)
 
-        def select_file(dialog, result): 
+        def select_file(dialog, result):
+            file_path = None
+
             try:
                 file = dialog.open_finish(result)
+                file_path = file.get_path()
             except:
                 return
+           
+            from importing_dialog import ImportingDialog
+            dlg = ImportingDialog()
+            dlg.input(file_path)
+                    
+            def do_close_request(win):
+                obj = dlg.output()
+                self.editor.add(obj)
+                self.geom_panel.add(obj)
 
-            content = PointCloud()
-            file_path = file.get_path()
-            file_path = Path(file_path).as_posix()
-            content.set_from_file(file_path)
-            self.editor.add(content)
-
-            self.geom_panel.add('点云-'+str(content.id), content)
+            dlg.connect('close_request', do_close_request)
+            dlg.set_modal(True)  # 设置为模态窗口
+            dlg.set_transient_for(self)  # 设置父窗口
+            dlg.present()
 
         dialog.open(None, None, select_file)
 
     def building_divide(self,sender, *args):
-        pcs = []
-        for obj in self.editor.children:
-            if type(obj) != PointCloud:
-                continue
+        i = self.geom_panel.selection_model.get_selected()
+        if i == Gtk.INVALID_LIST_POSITION:
+            return
 
-            pcs.append(obj)
+        tree_row = self.geom_panel.selection_model.get_item(i)
+        if tree_row.get_depth():
+            return
+
+        item = tree_row.get_item()
+        if item.model.get_n_items():
+            return
         
         from building_division_dialog import BuildingDivisionDialog
-        dlg = BuildingDivisionDialog()
-        dlg.input(pcs)
-
+        dlg = BuildingDivisionDialog()      
+        dlg.input(item.obj)
+        
         def do_close_request(win):
-            for obj in self.editor.children:
-                if type(obj) != PointCloud:
-                    continue
-
-                self.editor.remove(obj)
-                self.geom_panel.remove('点云-'+str(obj.id))
-
-            pcs = dlg.output()
-            pc = np.vstack(pcs)
-            z = pc[:,2]
-            z_min = np.min(z)
-            z_max = np.max(z)
-
-            import colorsys  # 导入 colorsys 模块用于 HSV 到 RGB 的转换
-            for pc in pcs:
-                z = pc[:,2]
-                # 归一化 z 坐标
-                z_normalized = (z - z_min) / (z_max - z_min) if z_max != z_min else 0.5
-                # 绿色色相为 120/360，红色色相为 0，根据 z 坐标线性插值
-                hsv_hues = 240 / 360 * (1 - z_normalized)
-                # 固定饱和度和明度
-                saturation = 1.0
-                value = 1.0
-                # 转换为 RGB 颜色
-                colors = np.array([colorsys.hsv_to_rgb(h, saturation, value) for h in hsv_hues], dtype=np.float32)
-
-                geometry = gfx.Geometry(positions=pc, colors=colors)
-                material = gfx.PointsMaterial(color_mode="vertex", size=1)
-                points = PointCloud(geometry,material)
-                self.editor.add(points)
-                self.geom_panel.add('点云-'+str(points.id),points)
+            self.geom_panel.add_sub(item,dlg.output())
 
         dlg.connect('close_request', do_close_request)
         dlg.set_modal(True)  # 设置为模态窗口
@@ -201,20 +186,24 @@ class AppWindow (Gtk.ApplicationWindow):
         dlg.present()
 
     def building_reconstruct(self,sender, *args):
-        pcs = []
-        for obj in self.editor.children:
-            if type(obj) != PointCloud:
-                continue
-            pcs.append(obj)
-        
+        i = self.geom_panel.selection_model.get_selected()
+        if i == Gtk.INVALID_LIST_POSITION:
+            return
+
+        tree_row = self.geom_panel.selection_model.get_item(i)
+        if tree_row.get_depth():
+            return
+
+        item = tree_row.get_item()
+        if 0 == item.model.get_n_items():
+            return
+
         from building_reconstruction_dialog import BuildingReconstructionDialog
         dlg = BuildingReconstructionDialog()
-        dlg.input(pcs)
+        dlg.input(item.obj)
 
         def do_close_request(win):
-            for obj in dlg.output():
-                self.editor.add(obj)
-                self.geom_panel.add('网格-'+str(obj.id),obj)
+            self.geom_panel.add_sub(item,dlg.output())
 
         dlg.connect('close_request', do_close_request)
         dlg.set_modal(True)  # 设置为模态窗口

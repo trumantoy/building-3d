@@ -60,7 +60,8 @@ class BuildingReconstructionDialog (Gtk.Window):
             np.savetxt(os.path.join(roof_input_dir, f'{i}.xyz'), roof_points)           
 
         # pyinstaller --contents-directory _reconstruct --collect-all=scipy --collect-all=skimage
-        p = sp.Popen([f'{working_directory}/reconstruct.exe'],cwd=working_directory)
+        # p = None
+        # p = sp.Popen([f'{working_directory}/reconstruct.exe'],cwd=working_directory)
         GLib.idle_add(self.reconstruct, len(pcs), p)
 
     def reconstruct(self,count: int, p : sp.Popen):
@@ -72,9 +73,9 @@ class BuildingReconstructionDialog (Gtk.Window):
 
         fraction = i / count
         self.progress.set_fraction(fraction)
-        # if i >= count:
-        #     self.close()
-        #     return
+        if i >= count:
+            self.close()
+            return
 
         GLib.idle_add(self.reconstruct, count,p)
 

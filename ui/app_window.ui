@@ -130,7 +130,7 @@
                 <object class="Hotbar" id="hotbar">
                   <property name="halign">center</property>
                   <property name="valign">end</property>
-                  <property name="visible">True</property>
+                  <property name="visible">False</property>
                   <property name="opacity">0.8</property>
                 </object>
               </child>
@@ -151,7 +151,7 @@
                 <object class="Actionbar" id="actionbar">
                   <property name="halign">start</property>
                   <property name="valign">start</property>
-                  <property name="visible">True</property>
+                  <property name="visible">False</property>
                   <property name="opacity">0.8</property>
                 </object>
               </child>

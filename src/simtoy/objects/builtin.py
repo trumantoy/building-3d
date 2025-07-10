@@ -157,8 +157,6 @@ fn fs_main(varyings: Varyings) -> FragmentOutput {
 '''
 
 class PointCloud(gfx.Points):
-    name = '点云'
-    
     def __init__(self,*args,**kwargs):
         super().__init__(*args,**kwargs)
 
@@ -276,7 +274,8 @@ class Building(gfx.Mesh):
             material=gfx.TextMaterial(color="#0f4"),
         )
 
-        self.assessment_text.local.position = [0,0,0]
+        aabb = self.get_bounding_box()
+        self.assessment_text.local.position = [0,0,aabb[1][2]]
         self.add(self.assessment_text)
 
 

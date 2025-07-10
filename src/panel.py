@@ -24,10 +24,16 @@ class Panel (Gtk.Paned):
     def __init__(self):
         Gtk.StyleContext.add_provider_for_display(self.get_display(),self.provider,Gtk.STYLE_PROVIDER_PRIORITY_USER)
 
-        self.model = Gio.ListStore.new(GObject.Object)
-        self.selection_model = Gtk.SingleSelection.new(self.model)
-        self.selection_model.set_autoselect(False)
-        self.selection_model.set_can_unselect(True)
+        self.model = Gio.ListStore(item_type=GObject.Object)
+
+        def create_model(item):
+            return item.model
+
+        self.tree_model = Gtk.TreeListModel.new(self.model,passthrough=False,autoexpand=False,create_func=create_model)
+
+        self.selection_model = Gtk.SingleSelection.new(self.tree_model)
+        self.selection_model.set_autoselect(True)
+        self.selection_model.set_can_unselect(False)
         self.selection_model.connect("selection-changed", self.item_selection_changed)
 
         factory = Gtk.SignalListItemFactory()
@@ -59,41 +65,62 @@ class Panel (Gtk.Paned):
         icon.get_style_context().add_class("borderless-toggle-button")
         icon.connect("toggled", self.item_visible_toggled, listviewitem)
 
-        # 创建标签
-        label = Gtk.Label()
-        label.set_halign(Gtk.Align.START)
+        name_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+        expander = Gtk.TreeExpander()        
+        name_label = Gtk.Label()
+        name_box.append(expander)
+        name_box.append(name_label)
         
         # 将图标和标签添加到容器中
+        box.append(name_box)
         box.append(icon)
-        box.append(label)
         
         # 设置列表项的显示内容
         listviewitem.set_child(box)
 
-    def bind_listitem(self, factory, listviewitem):
-        # 获取容器和其中的子部件
-        box = listviewitem.get_child()
-        icon = box.get_first_child()
-        label = box.get_last_child()
+    def bind_listitem(self, factory, list_item):
+        tree_row = list_item.get_item()
+        box = list_item.get_child()
+        name_box = box.get_first_child()
+        icon = box.get_last_child()
+        expander = name_box.get_first_child()
+        label = name_box.get_last_child()
 
-        item = listviewitem.get_item()
-        label.set_label(item.name)
-        
+        tree_item = tree_row.get_item()
 
-    def add(self, name, obj):
+        expander.set_list_row(tree_row)
+
+        label.set_label(tree_item.obj.name)
+        if tree_item.model.get_n_items():
+            expander.set_hide_expander(False)
+        else:
+            expander.set_hide_expander(True)
+
+    def add(self, obj):
         item = GObject.Object()
-        item.name = name
         item.obj = obj
+        item.model = Gio.ListStore(item_type=GObject.Object)
         self.model.append(item)
-    
-    def remove(self, name):
+
+    def add_sub(self,item,objs):
+        for obj in objs:
+            sub_item = GObject.Object()
+            sub_item.obj = obj
+            sub_item.model = Gio.ListStore(item_type=GObject.Object)
+            item.model.append(sub_item)
+
+        self.model.items_changed(self.model.get_n_items() - 1,1,1)
+        
+        
+    def remove(self, obj):
         for i,item in enumerate(self.model):
-            if item.name == name:
+            if item.obj == obj:
                 self.model.remove(i)
                 break
         
-    def item_visible_toggled(self,sender,listviewitem):
-        item = listviewitem.get_item()
+    def item_visible_toggled(self,sender,list_item):
+        tree_row = list_item.get_item()
+        item = tree_row.get_item()
         
         if sender.get_active():
             sender.set_icon_name("display-brightness-symbolic")
@@ -103,8 +130,9 @@ class Panel (Gtk.Paned):
             item.obj.visible = False
 
     def item_selection_changed(self, selection_model, position, n_items):
-        selected_index = selection_model.get_selected()
-        item = self.model.get_item(selected_index)
+        i = selection_model.get_selected()
+        item = selection_model.get_item(i).get_item()
+        print(item.obj)
         self.spin_x.set_value(item.obj.local.x)
         self.spin_y.set_value(item.obj.local.y)
         self.spin_z.set_value(item.obj.local.z)
@@ -138,29 +166,29 @@ class Panel (Gtk.Paned):
     @Gtk.Template.Callback()
     def x_value_changed(self, spin_button):
         value = spin_button.get_value()
-        selected_index = self.selection_model.get_selected()
-        item = self.model.get_item(selected_index)
+        i = self.selection_model.get_selected()
+        item = self.selection_model.get_item(i).get_item()
         item.obj.local.x = value
 
     @Gtk.Template.Callback()
     def y_value_changed(self, spin_button):
         value = spin_button.get_value()
-        selected_index = self.selection_model.get_selected()
-        item = self.model.get_item(selected_index)
+        i = self.selection_model.get_selected()
+        item = self.selection_model.get_item(i).get_item()
         item.obj.local.y = value
 
     @Gtk.Template.Callback()
     def z_value_changed(self, spin_button):
         value = spin_button.get_value()
-        selected_index = self.selection_model.get_selected()
-        item = self.model.get_item(selected_index)
+        i = self.selection_model.get_selected()
+        item = self.selection_model.get_item(i).get_item()
         item.obj.local.z = value
 
     @Gtk.Template.Callback()
     def point_size_value_changed(self,spin_button):
         value = spin_button.get_value()
-        selected_index = self.selection_model.get_selected()
-        item = self.model.get_item(selected_index)
+        i = self.selection_model.get_selected()
+        item = self.selection_model.get_item(i).get_item()
         item.obj.material.size = value
 
     @Gtk.Template.Callback()
@@ -169,7 +197,7 @@ class Panel (Gtk.Paned):
 
     @Gtk.Template.Callback()
     def roomcolor_activated(self,sender,*args):
-        selected_index = self.selection_model.get_selected()
-        item = self.model.get_item(selected_index)
+        i = self.selection_model.get_selected()
+        item = self.selection_model.get_item(i).get_item()
         color = self.roomcolor.get_color()
         item.obj.material.color = (color.red, color.green, color.blue)
