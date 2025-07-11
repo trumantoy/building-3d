@@ -34,8 +34,10 @@ class BuildingReconstructionDialog (Gtk.Window):
         bar.set_show_title_buttons(False)
         self.set_titlebar(bar)
     
-    def input(self, pcs : List[PointCloud]):
-        if not pcs: return
+    def input(self, obj : PointCloud):
+        if not obj: return
+        self.src_obj = obj
+
         self.working_directory = working_directory = 'algorithm'
         building_input_dir = os.path.join(working_directory,'input','full_xyz_files')
         roof_input_dir = os.path.join(working_directory,'input','roof_xyz_files')
@@ -51,18 +53,25 @@ class BuildingReconstructionDialog (Gtk.Window):
         os.makedirs(roof_input_dir,exist_ok=True)
         os.makedirs(building_output_dir,exist_ok=True)
         os.makedirs(roof_output_dir,exist_ok=True)
-        
-        for i, pc in enumerate(pcs):
-            points = pc.geometry.positions.data + pc.local.position
+        count = 0
+        for i, sub_obj in enumerate(obj.children):
+            if type(sub_obj) != PointCloud:
+                continue
+
+            count+=1
+            points = sub_obj.geometry.positions.data + sub_obj.local.position
             roof_points, building_points = extract_roof_by_z_density(points)
-            if roof_points is None: continue
+            if roof_points is None: 
+                print(sub_obj.name)
+            
+                continue
             np.savetxt(os.path.join(building_input_dir, f'{i}.xyz'), building_points)
-            np.savetxt(os.path.join(roof_input_dir, f'{i}.xyz'), roof_points)           
+            np.savetxt(os.path.join(roof_input_dir, f'{i}.xyz'), roof_points)
 
         # pyinstaller --contents-directory _reconstruct --collect-all=scipy --collect-all=skimage
         # p = None
-        # p = sp.Popen([f'{working_directory}/reconstruct.exe'],cwd=working_directory)
-        GLib.idle_add(self.reconstruct, len(pcs), p)
+        p = sp.Popen([f'{working_directory}/reconstruct.exe'],cwd=working_directory)
+        GLib.idle_add(self.reconstruct, count, p)
 
     def reconstruct(self,count: int, p : sp.Popen):
         if p.poll() is not None:
@@ -80,20 +89,8 @@ class BuildingReconstructionDialog (Gtk.Window):
         GLib.idle_add(self.reconstruct, count,p)
 
     def output(self):
-        assessment = dict()
-        with open(self.assessment_output_file, 'r') as f:
-            for line in f.readlines():
-                line = line.strip()
-                if not line: break
-                parts = line.split(':')
-                index = parts[0].strip()
-                value = float(parts[1].strip()) 
-                assessment[index] = value
-
         objs = []
         for file_path in [e.path for e in os.scandir(self.building_output_dir) if e.is_file()]:
-            print(file_path)
-            index = os.path.splitext(os.path.basename(file_path))[0]
             mesh = gfx.load_mesh(file_path)[0]
 
             pc = mesh.geometry.positions.data
@@ -102,16 +99,19 @@ class BuildingReconstructionDialog (Gtk.Window):
             origin = np.array([np.min(x),np.min(y),0])
             x = x - np.min(x)
             y = y - np.min(y)
-            z = 0
+            z = z
             pc = np.column_stack([x,y,z]) - [(x.max()-x.min())/2,(y.max()-y.min())/2,0]
             mesh.geometry.positions.data[:] = pc.astype(np.float32)
-            
+
             building = Building()
             building.geometry = mesh.geometry
-            building.material = mesh.material
+            building.material = gfx.MeshBasicMaterial(color="white",side=gfx.VisibleSide.both) 
             building.local.position = origin + offset
-            building.update_assessment(assessment[index])
+            building.name = os.path.basename(file_path)
+
+            self.src_obj.add(building)
             objs.append(building)
+
         return objs
 
 

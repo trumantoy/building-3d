@@ -38,8 +38,7 @@ class BuildingDivisionDialog (Gtk.Window):
         self.result = []
         self.src_obj = obj
         pc = obj.geometry.positions.data + obj.local.position
-        self.src_obj.geometry = gfx.Geometry(positions=[[0,0,0]],colors=[[0,0,0,1]]) #.positions.data[:] = [[0,0,0]]
-        
+
 
         self.progress.set_fraction(0)
 
@@ -87,6 +86,8 @@ class BuildingDivisionDialog (Gtk.Window):
         GLib.idle_add(self.close)
 
     def output(self):
+        self.src_obj.geometry = gfx.Geometry(positions=[[0,0,0]],colors=[[0,0,0,1]]) #.positions.data[:] = [[0,0,0]]
+        
         pc = np.vstack([i[0] for i in self.result])
 
         z = pc[:,2]

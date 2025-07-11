@@ -155,14 +155,18 @@ class Panel (Gtk.Paned):
         assessment = spin_button.get_value()
 
         for item in self.model:
-            if type(item.obj) != Building:
+            if type(item.obj) != PointCloud:
                 continue
             
-            if item.obj.assessment >= assessment:
-                item.obj.visible = True
-            else:
-                item.obj.visible = False
+            for sub_item in item.model:
+                if type(sub_item.obj) != Building:
+                    continue
 
+                if sub_item.obj.assessment < assessment:
+                    sub_item.obj.visible = True
+                else:
+                    sub_item.obj.visible = False
+            
     @Gtk.Template.Callback()
     def x_value_changed(self, spin_button):
         value = spin_button.get_value()

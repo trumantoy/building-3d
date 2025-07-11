@@ -258,7 +258,7 @@ class Building(gfx.Mesh):
     def __init__(self,*args,**kwargs):
         super().__init__(*args,**kwargs)
 
-        self.assessment = 0
+        self.assessment = None
         
     def step(self,dt):
         pass
@@ -269,13 +269,13 @@ class Building(gfx.Mesh):
         self.assessment_text = gfx.Text(
             markdown=str(assessment),
             screen_space=True,
-            font_size=20,
+            font_size=40,
             anchor="top-center",
-            material=gfx.TextMaterial(color="#0f4"),
+            material=gfx.TextMaterial(color="black"),
         )
 
         aabb = self.get_bounding_box()
-        self.assessment_text.local.position = [0,0,aabb[1][2]]
+        self.assessment_text.local.position = [0,0,aabb[1][2] + 10]
         self.add(self.assessment_text)
 
 

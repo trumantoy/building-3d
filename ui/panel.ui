@@ -4,7 +4,7 @@
         <!-- 设置为水平分隔，若要垂直分隔，将值改为 vertical -->
         <property name="orientation">vertical</property>
         <property name="position">300</property>
-        <property name="wide-handle">True</property>
+        <!-- <property name="wide-handle">True</property> -->
         <property name="margin-start">5</property>
         <property name="margin-end">5</property>
 
@@ -35,6 +35,8 @@
                 </child>
                 <child>
                     <object class="GtkBox">
+                        <property name="margin-top">10</property>
+                        <property name="margin-bottom">10</property>
                         <child>
                             <object class="GtkLabel">
                                 <property name="label">评估阈值</property>
@@ -55,7 +57,7 @@
                                         <property name="step_increment">0.1</property>
                                         <property name="page_increment">1</property>
                                         <property name="page_size">0</property>
-                                        <property name="value">0</property>
+                                        <property name="value">1</property>
                                     </object>
                                 </property>
                                 <property name="climb_rate">1</property>

@@ -69,6 +69,14 @@ class AppWindow (Gtk.ApplicationWindow):
         action.connect('activate', self.building_reconstruct)
         self.add_action(action)
 
+        action = Gio.SimpleAction.new('building_assess', None)
+        action.connect('activate', self.building_assess)
+        self.add_action(action)
+
+        action = Gio.SimpleAction.new('building_texture', None)
+        action.connect('activate', self.building_texture)
+        self.add_action(action)
+
         zoom_controller = Gtk.EventControllerScroll.new(Gtk.EventControllerScrollFlags(Gtk.EventControllerScrollFlags.VERTICAL))
         zoom_controller.connect("scroll", lambda sender,dx,dy: self.renderer.dispatch_event(gfx.WheelEvent('wheel',dx=0.0,dy=dy*100,x=0,y=0,time_stamp=time.perf_counter())))
         
@@ -204,6 +212,56 @@ class AppWindow (Gtk.ApplicationWindow):
 
         def do_close_request(win):
             self.geom_panel.add_sub(item,dlg.output())
+
+        dlg.connect('close_request', do_close_request)
+        dlg.set_modal(True)  # 设置为模态窗口
+        dlg.set_transient_for(self)  # 设置父窗口
+        dlg.present()
+
+    def building_assess(self,sender, *args):
+        i = self.geom_panel.selection_model.get_selected()
+        if i == Gtk.INVALID_LIST_POSITION:
+            return
+
+        tree_row = self.geom_panel.selection_model.get_item(i)
+        if tree_row.get_depth():
+            return
+
+        item = tree_row.get_item()
+        if 0 == item.model.get_n_items():
+            return
+
+        from building_assessment_dialog import BuildingAssessmentDialog
+        dlg = BuildingAssessmentDialog()
+        dlg.input(item.obj)
+
+        def do_close_request(win):
+            dlg.output()
+
+        dlg.connect('close_request', do_close_request)
+        dlg.set_modal(True)  # 设置为模态窗口
+        dlg.set_transient_for(self)  # 设置父窗口
+        dlg.present()
+
+    def building_texture(self,sender, *args):
+        i = self.geom_panel.selection_model.get_selected()
+        if i == Gtk.INVALID_LIST_POSITION:
+            return
+
+        tree_row = self.geom_panel.selection_model.get_item(i)
+        if tree_row.get_depth():
+            return
+
+        item = tree_row.get_item()
+        if 0 == item.model.get_n_items():
+            return
+
+        from building_texture_dialog import BuildingTextureDialog
+        dlg = BuildingTextureDialog()
+        dlg.input(item.obj)
+
+        def do_close_request(win):
+            dlg.output()
 
         dlg.connect('close_request', do_close_request)
         dlg.set_modal(True)  # 设置为模态窗口

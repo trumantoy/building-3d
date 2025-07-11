@@ -54,7 +54,11 @@
         </item>
         <item>
           <attribute name="label" translatable="yes">深度学习-建筑物评估</attribute>
-          <attribute name="action">win.building_evaluate</attribute>
+          <attribute name="action">win.building_assess</attribute>
+        </item>
+        <item>
+          <attribute name="label" translatable="yes">深度学习-建筑物纹理</attribute>
+          <attribute name="action">win.building_texture</attribute>
         </item>
 
     </section>
