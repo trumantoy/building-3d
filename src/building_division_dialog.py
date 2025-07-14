@@ -54,8 +54,7 @@ class BuildingDivisionDialog (Gtk.Window):
 
         np.save(input_file, pc)
 
-        # pyinstaller.exe divide.py --contents-directory _divide
-        # p = sp.Popen(["c:/Users/SLTru/AppData/Local/Programs/Python/Python312/python.exe","../pc_seg/divide.py",temp_file_path],stdin=sp.PIPE,stdout=sp.PIPE,encoding='utf-8', cwd=working_directory)
+        # pyinstaller.exe divide.py --contents-directory _divide; mkdir dist/divide/input; cp -r weights dist/divide/input
         p = sp.Popen([f'{working_directory}/divide.exe'],stdout=sp.PIPE,encoding='utf-8',text=True,cwd=working_directory)
 
         self.working_directory = working_directory
@@ -86,7 +85,7 @@ class BuildingDivisionDialog (Gtk.Window):
         GLib.idle_add(self.close)
 
     def output(self):
-        self.src_obj.geometry = gfx.Geometry(positions=[[0,0,0]],colors=[[0,0,0,1]]) #.positions.data[:] = [[0,0,0]]
+        self.src_obj.material.opacity = 0
         
         pc = np.vstack([i[0] for i in self.result])
 

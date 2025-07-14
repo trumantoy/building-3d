@@ -212,7 +212,12 @@ class AppWindow (Gtk.ApplicationWindow):
 
         def do_close_request(win):
             self.geom_panel.add_sub(item,dlg.output())
-
+            
+            for i, sub_obj in enumerate(item.obj.children):
+                if type(sub_obj) != PointCloud:
+                    continue
+                sub_obj.material.opacity = 0
+                
         dlg.connect('close_request', do_close_request)
         dlg.set_modal(True)  # 设置为模态窗口
         dlg.set_transient_for(self)  # 设置父窗口

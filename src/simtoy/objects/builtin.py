@@ -173,6 +173,14 @@ class PointCloud(gfx.Points):
         z = las.z - np.min(las.z)
         positions = np.column_stack([x,y,z]) - [(x.max()-x.min())/2,(y.max()-y.min())/2,0]
 
+        max_points = 20000000  # 最大点数
+        if len(positions) > max_points:
+            # 计算采样间隔
+            step = len(positions) // max_points
+            positions = positions[::step]
+            # 确保最终点数不超过 max_points
+            positions = positions[:max_points]
+
         if hasattr(las, 'red') and hasattr(las, 'green') and hasattr(las, 'blue'):
             # 获取颜色数据
             red = las.red / 65535.0  # LAS 文件颜色值范围通常是 0 - 65535
@@ -267,11 +275,11 @@ class Building(gfx.Mesh):
         self.assessment = assessment
 
         self.assessment_text = gfx.Text(
-            markdown=str(assessment),
+            markdown=str(round(assessment, 2)),
             screen_space=True,
-            font_size=40,
+            font_size=20,
             anchor="top-center",
-            material=gfx.TextMaterial(color="black"),
+            material=gfx.TextMaterial(color="green"),
         )
 
         aabb = self.get_bounding_box()

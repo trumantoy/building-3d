@@ -67,14 +67,20 @@ class BuildingTextureDialog (Gtk.Window):
         p = sp.Popen([f'{working_directory}/texture.exe'],cwd=working_directory)
         p.wait()
 
-        GLib.idle_add(self.close)
-
-    def output(self):
-        objs = []
+        self.objs = []
         for file_path in [e.path for e in os.scandir(self.building_output_dir) if e.is_file()]:
             if not file_path.endswith('.obj'):
                 continue
 
+            mesh = trimesh.load_mesh(file_path)
+            
+            file_name = os.path.basename(file_path)
+            name = os.path.splitext(file_name)[0]
+
+            if hasattr(mesh.visual, 'material'):
+                material = mesh.visual.material.name = name
+
+            mesh.export(file_path, mtl_name=f'{name}.mtl')  # 添加自定义MTL模板
             mesh = gfx.load_mesh(file_path)[0]
 
             pc = mesh.geometry.positions.data
@@ -93,7 +99,12 @@ class BuildingTextureDialog (Gtk.Window):
                     self.src_obj.remove(sub_obj)
                     break
 
-            mesh.material = gfx.MeshBasicMaterial(map=mesh.material.map, side=gfx.VisibleSide.both)
+            mesh.material.side = gfx.VisibleSide.both
+            mesh.material.color = (0.8, 0.8, 0.8)  # 设置材质颜色为白色
+            mesh.material.shininess = 0  # 降低高光强度
+            mesh.material.specular = (0.0, 0.0, 0.0, 1.0)  # 降低高光色
+            mesh.material.emissive = (0.8, 0.8, 0.8)  # 设置微弱自发光
+            mesh.material.flat_shading = True  # 启用平面着色
 
             building = Building()
             building.geometry = mesh.geometry
@@ -102,6 +113,9 @@ class BuildingTextureDialog (Gtk.Window):
             building.name = name
 
             self.src_obj.add(building)
-            objs.append(building)
+            self.objs.append(building)
 
-        return objs
+        GLib.idle_add(self.close)
+
+    def output(self):
+        return self.objs

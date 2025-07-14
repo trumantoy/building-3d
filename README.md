@@ -94,13 +94,13 @@ pacman -S mingw-w64-x86_64-python-pyinstaller
 ### 打包程序
 
 ```bash
-pyinstaller src/app.py --collect-all=gi --add-data "src/simtoy/data:simtoy/data" --add-data "c:/msys64/mingw64/lib/girepository-1.0:gi_typelibs" && cp -r ui dist/app && cp -r algorithm dist/app
+pyinstaller src/app.py --collect-all=gi --add-data "src/simtoy/data:simtoy/data" --add-data "c:/msys64/mingw64/lib/girepository-1.0:gi_typelibs" && cp -r ui dist/app && mkdir dist/app/algorithm
 ```
 
 ### 补全依赖库
 
 ```bash
-strace python src/app.py | sed -n 's/.*\(C:\\msys64\\mingw64\\bin\\.*\.dll\).*/\1/p' | sed -n 's/\\/\//gp' | awk '{print "cp " $0 " dist/app/_internal"}' |
+strace python src/app.py | sed -n 's/.*\(C:\\msys64\\mingw64\\bin\\.*\.dll\).*/\1/p' | sed -n 's/\\/\//gp' | awk '{print "cp " $0 " dist/app/_internal"}' | bash
 ```
 
 # 2. 工作计划

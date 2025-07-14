@@ -32,8 +32,6 @@ class Panel (Gtk.Paned):
         self.tree_model = Gtk.TreeListModel.new(self.model,passthrough=False,autoexpand=False,create_func=create_model)
 
         self.selection_model = Gtk.SingleSelection.new(self.tree_model)
-        self.selection_model.set_autoselect(True)
-        self.selection_model.set_can_unselect(False)
         self.selection_model.connect("selection-changed", self.item_selection_changed)
 
         factory = Gtk.SignalListItemFactory()
@@ -102,6 +100,10 @@ class Panel (Gtk.Paned):
         item.model = Gio.ListStore(item_type=GObject.Object)
         self.model.append(item)
 
+        if self.model.get_n_items() == 1:
+            self.selection_model.set_selected(0)
+            self.item_selection_changed(self.selection_model, 0, 1)
+
     def add_sub(self,item,objs):
         for obj in objs:
             sub_item = GObject.Object()
@@ -124,15 +126,15 @@ class Panel (Gtk.Paned):
         
         if sender.get_active():
             sender.set_icon_name("display-brightness-symbolic")
-            item.obj.visible = True
+            item.obj.material.opacity = 1
         else:
             sender.set_icon_name("")
-            item.obj.visible = False
+            item.obj.material.opacity = 0
 
     def item_selection_changed(self, selection_model, position, n_items):
         i = selection_model.get_selected()
         item = selection_model.get_item(i).get_item()
-        print(item.obj)
+
         self.spin_x.set_value(item.obj.local.x)
         self.spin_y.set_value(item.obj.local.y)
         self.spin_z.set_value(item.obj.local.z)
@@ -163,9 +165,9 @@ class Panel (Gtk.Paned):
                     continue
 
                 if sub_item.obj.assessment < assessment:
-                    sub_item.obj.visible = True
+                    sub_item.obj.material.opacity = 1
                 else:
-                    sub_item.obj.visible = False
+                    sub_item.obj.material.opacity = 0
             
     @Gtk.Template.Callback()
     def x_value_changed(self, spin_button):

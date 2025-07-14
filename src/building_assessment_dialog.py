@@ -46,16 +46,16 @@ class BuildingAssessmentDialog (Gtk.Window):
     
     def assessing(self,src_obj):
         working_directory = 'algorithm'
-        building_input_dir = os.path.join(working_directory,'input','building_mesh')
-        roof_input_dir = os.path.join(working_directory,'input','roof_points')
+        mesh_input_dir = os.path.join(working_directory,'input','roof_mesh')
+        points_input_dir = os.path.join(working_directory,'input','roof_points')
         self.assessment_output_file = assessment_output_file = os.path.join(working_directory,'output','assessment_results_mesh_oabj.txt')
 
-        shutil.rmtree(building_input_dir,ignore_errors=True)
-        shutil.rmtree(roof_input_dir,ignore_errors=True)
+        shutil.rmtree(mesh_input_dir,ignore_errors=True)
+        shutil.rmtree(points_input_dir,ignore_errors=True)
         if os.path.exists(assessment_output_file): os.remove(assessment_output_file)
 
-        os.makedirs(building_input_dir,exist_ok=True)
-        os.makedirs(roof_input_dir,exist_ok=True)
+        os.makedirs(mesh_input_dir,exist_ok=True)
+        os.makedirs(points_input_dir,exist_ok=True)
 
         for i, sub_obj in enumerate(src_obj.children):
             if type(sub_obj) == PointCloud:
@@ -63,15 +63,14 @@ class BuildingAssessmentDialog (Gtk.Window):
                 roof_points, building_points = extract_roof_by_z_density(points)
                 if roof_points is None: continue
                 name = os.path.splitext(sub_obj.name)[0]
-                np.savetxt(os.path.join(roof_input_dir, f'{name}.xyz'), roof_points)
+                np.savetxt(os.path.join(points_input_dir, f'{name}.xyz'), roof_points)
             elif type(sub_obj) == Building:
-                positions = sub_obj.geometry.positions.data + sub_obj.local.position
-                faces = sub_obj.geometry.indices.data if sub_obj.geometry.indices is not None else None
-                tm = trimesh.Trimesh(vertices=positions, faces=faces)
                 name = os.path.splitext(sub_obj.name)[0]
-                tm.export(os.path.join(building_input_dir, f'{name}.obj'))
-
-        # pyinstaller.exe assess.py --contents-directory _assess
+                if sub_obj.roof_mesh_content:            
+                    with open(os.path.join(mesh_input_dir, f'{name}.obj'), 'w') as f:
+                        f.write(sub_obj.roof_mesh_content.getvalue())
+                    
+        # pyinstaller.exe assess.py
         p = sp.Popen([f'{working_directory}/assess.exe'],cwd=working_directory)
         p.wait()
 
@@ -79,22 +78,25 @@ class BuildingAssessmentDialog (Gtk.Window):
 
     def output(self):
         assessment = dict()
-        with open(self.assessment_output_file, 'r') as f:
+        if not os.path.exists(self.assessment_output_file):
+            return assessment
+            
+        with open(self.assessment_output_file, 'r', encoding='utf-8') as f:
             for line in f.readlines():
                 line = line.strip()
                 if not line: break
                 parts = line.split(':')
                 index = parts[0].strip()
-                value = float(parts[1].strip()) 
+                try:
+                    value = float(parts[1].strip()) 
+                except ValueError:
+                    continue
                 assessment[index] = value
-
-        print(assessment)
 
         for sub_obj in self.src_obj.children:
             if type(sub_obj) != Building:
                 continue
             
-            print(sub_obj.name)
             name = os.path.splitext(sub_obj.name)[0]
             if name in assessment:
                 sub_obj.update_assessment(assessment[name])
@@ -105,8 +107,8 @@ class BuildingAssessmentDialog (Gtk.Window):
 from scipy.signal import find_peaks
 
 #提取屋顶
-def extract_roof_by_z_density(points, bin_size=0.2, top_percent=0.7,
-                            peak_prominence=0.1, max_peaks=10, extend_below=1.0):
+def extract_roof_by_z_density(points, bin_size=0.6, top_percent=0.8,
+                               peak_prominence=0.95, max_peaks=10, extend_below=1.0):
     """
     从输入点云中根据 z 分布提取屋顶点。
     返回: 屋顶点数组 (M, 3)，如果为噪声或无主峰则返回 None

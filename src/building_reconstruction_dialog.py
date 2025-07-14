@@ -8,6 +8,9 @@ import shutil
 import numpy as np
 import os
 import pygfx as gfx
+import threading
+import time
+import io
 
 from simtoy import *
 
@@ -33,16 +36,24 @@ class BuildingReconstructionDialog (Gtk.Window):
         
         bar.set_show_title_buttons(False)
         self.set_titlebar(bar)
-    
+
+        self.connect('map', self.on_map)
+
     def input(self, obj : PointCloud):
         if not obj: return
         self.src_obj = obj
-
+        self.thread = threading.Thread(target=self.reconstructing, args=[obj])
+ 
+    def on_map(self,*args):
+        self.thread.start()
+    
+    def reconstructing(self,obj):
         self.working_directory = working_directory = 'algorithm'
         building_input_dir = os.path.join(working_directory,'input','full_xyz_files')
         roof_input_dir = os.path.join(working_directory,'input','roof_xyz_files')
         self.building_output_dir = building_output_dir = os.path.join(working_directory,'output','complete_mesh')
-        self.roof_output_dir = roof_output_dir = os.path.join(working_directory,'output','roof_wireframe')
+        # self.roof_output_dir = roof_output_dir = os.path.join(working_directory,'output','roof_wireframe')
+        self.roof_output_dir = roof_output_dir = os.path.join(working_directory,'output','roof_mesh')
         self.assessment_output_file = os.path.join(working_directory,'output','assessment_results_mesh_oabj.txt')
 
         shutil.rmtree(building_input_dir,ignore_errors=True)
@@ -57,39 +68,26 @@ class BuildingReconstructionDialog (Gtk.Window):
         for i, sub_obj in enumerate(obj.children):
             if type(sub_obj) != PointCloud:
                 continue
+            name = os.path.splitext(sub_obj.name)[0]
 
             count+=1
             points = sub_obj.geometry.positions.data + sub_obj.local.position
             roof_points, building_points = extract_roof_by_z_density(points)
-            if roof_points is None: 
-                print(sub_obj.name)
-            
-                continue
-            np.savetxt(os.path.join(building_input_dir, f'{i}.xyz'), building_points)
-            np.savetxt(os.path.join(roof_input_dir, f'{i}.xyz'), roof_points)
+            if roof_points is None: continue
+            np.savetxt(os.path.join(building_input_dir, f'{name}.xyz'), building_points)
+            np.savetxt(os.path.join(roof_input_dir, f'{name}.xyz'), roof_points)
 
-        # pyinstaller --contents-directory _reconstruct --collect-all=scipy --collect-all=skimage
-        # p = None
+        # pyinstaller reconstruct.py --contents-directory _reconstruct --collect-all=scipy --collect-all=skimage --exclude-module=cupy; mkdir dist/reconstruct/input; cp -r input/pth_files dist/reconstruct/input
         p = sp.Popen([f'{working_directory}/reconstruct.exe'],cwd=working_directory)
-        GLib.idle_add(self.reconstruct, count, p)
+        i = 1
+        while p.poll() is None:
+            i = len([e.name for e in os.scandir(self.building_output_dir) if e.is_file()])
+            fraction = i / count
+            self.progress.set_fraction(fraction)
+            time.sleep(1)
 
-    def reconstruct(self,count: int, p : sp.Popen):
-        if p.poll() is not None:
-            self.close()
-            return
 
-        i = len([e.name for e in os.scandir(self.building_output_dir) if e.is_file()])
-
-        fraction = i / count
-        self.progress.set_fraction(fraction)
-        if i >= count:
-            self.close()
-            return
-
-        GLib.idle_add(self.reconstruct, count,p)
-
-    def output(self):
-        objs = []
+        self.objs = []
         for file_path in [e.path for e in os.scandir(self.building_output_dir) if e.is_file()]:
             mesh = gfx.load_mesh(file_path)[0]
 
@@ -102,24 +100,44 @@ class BuildingReconstructionDialog (Gtk.Window):
             z = z
             pc = np.column_stack([x,y,z]) - [(x.max()-x.min())/2,(y.max()-y.min())/2,0]
             mesh.geometry.positions.data[:] = pc.astype(np.float32)
+            mesh.material.side = gfx.VisibleSide.both
+            mesh.material.color = (0.8, 0.8, 0.8)  # 设置材质颜色为白色
+            mesh.material.shininess = 0  # 降低高光强度
+            mesh.material.specular = (0.0, 0.0, 0.0, 1.0)  # 降低高光色
+            mesh.material.emissive = (0.8, 0.8, 0.8)  # 设置微弱自发光
+            mesh.material.flat_shading = True  # 启用平面着色
 
             building = Building()
             building.geometry = mesh.geometry
-            building.material = gfx.MeshBasicMaterial(color="white",side=gfx.VisibleSide.both) 
+            building.material = mesh.material
             building.local.position = origin + offset
             building.name = os.path.basename(file_path)
+            name = os.path.splitext(building.name)[0]
+            roof_file_path = os.path.join(self.roof_output_dir, f'{name}.obj')
 
+            if not os.path.exists(roof_file_path):
+                print(file_path, 'Roof file not found:', roof_file_path)
+                building.roof_mesh_content = None
+                continue
+
+            with open(roof_file_path, 'r', encoding='utf-8') as f:
+                roof_content = f.read()
+                building.roof_mesh_content = io.StringIO(roof_content)
+            
             self.src_obj.add(building)
-            objs.append(building)
+            self.objs.append(building)
 
-        return objs
+        GLib.idle_add(self.close)
+
+    def output(self):
+        return self.objs
 
 
 from scipy.signal import find_peaks
 
 #提取屋顶
-def extract_roof_by_z_density(points, bin_size=0.2, top_percent=0.7,
-                            peak_prominence=0.1, max_peaks=10, extend_below=1.0):
+def extract_roof_by_z_density(points, bin_size=0.6, top_percent=0.8,
+                               peak_prominence=0.95, max_peaks=10, extend_below=1.0):
     """
     从输入点云中根据 z 分布提取屋顶点。
     返回: 屋顶点数组 (M, 3)，如果为噪声或无主峰则返回 None
