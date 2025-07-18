@@ -44,11 +44,31 @@ class Panel (Gtk.Paned):
         
         self.roofcolor.set_dialog(Gtk.ColorDialog())
         self.roomcolor.set_dialog(Gtk.ColorDialog())
+    
+    def set_viewbar(self,viewbar):
+        self.viewbar = viewbar
 
     def setup_listitem(self, factory, listviewitem):
         # 创建一个水平排列的容器
         box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
         
+        name_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+        expander = Gtk.TreeExpander()    
+        name_box.append(expander)
+
+        label = Gtk.Label()
+        name_box.append(label)
+
+        # 创建图标（使用默认的文件夹图标）
+        focus = Gtk.Button()
+        focus.set_icon_name("find-location-symbolic")
+        # focus.set_has_frame(False)
+        focus.connect("clicked", self.focus_clicked, listviewitem)
+        name_box.append(focus)
+
+        # 将图标和标签添加到容器中
+        box.append(name_box)
+
         # 创建图标（使用默认的文件夹图标）
         icon = Gtk.ToggleButton()
         icon.set_icon_name("display-brightness-symbolic")
@@ -62,17 +82,8 @@ class Panel (Gtk.Paned):
         self.provider.load_from_data(css)
         icon.get_style_context().add_class("borderless-toggle-button")
         icon.connect("toggled", self.item_visible_toggled, listviewitem)
-
-        name_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
-        expander = Gtk.TreeExpander()        
-        name_label = Gtk.Label()
-        name_box.append(expander)
-        name_box.append(name_label)
-        
-        # 将图标和标签添加到容器中
-        box.append(name_box)
         box.append(icon)
-        
+
         # 设置列表项的显示内容
         listviewitem.set_child(box)
 
@@ -80,15 +91,14 @@ class Panel (Gtk.Paned):
         tree_row = list_item.get_item()
         box = list_item.get_child()
         name_box = box.get_first_child()
-        icon = box.get_last_child()
         expander = name_box.get_first_child()
-        label = name_box.get_last_child()
+        label = expander.get_next_sibling()
 
         tree_item = tree_row.get_item()
 
         expander.set_list_row(tree_row)
-
         label.set_label(tree_item.obj.name)
+
         if tree_item.model.get_n_items():
             expander.set_hide_expander(False)
         else:
@@ -113,7 +123,6 @@ class Panel (Gtk.Paned):
 
         self.model.items_changed(self.model.get_n_items() - 1,1,1)
         
-        
     def remove(self, obj):
         for i,item in enumerate(self.model):
             if item.obj == obj:
@@ -130,6 +139,12 @@ class Panel (Gtk.Paned):
         else:
             sender.set_icon_name("")
             item.obj.material.opacity = 0
+    
+    def focus_clicked(self,sender,list_item):
+        tree_item = list_item.get_item()
+        item = tree_item.get_item()
+        camera = self.viewbar.get_view_camera()
+        camera.show_object(item.obj)
 
     def item_selection_changed(self, selection_model, position, n_items):
         i = selection_model.get_selected()
@@ -142,7 +157,8 @@ class Panel (Gtk.Paned):
         if type(item.obj) == PointCloud:
             self.expander_position.set_visible(True)
             self.expander_pointcloud.set_visible(True)
-            self.expander_mesh.set_visible(False)
+            self.expander_mesh.set_visible(False)        
+            item.obj.set_bounding_box_visible(True)    
         elif type(item.obj) == Building:
             self.expander_position.set_visible(True)
             self.expander_pointcloud.set_visible(False)
@@ -151,7 +167,8 @@ class Panel (Gtk.Paned):
             self.expander_position.set_visible(False)
             self.expander_pointcloud.set_visible(False)
             self.expander_mesh.set_visible(False)
-    
+
+
     @Gtk.Template.Callback()
     def assessment_value_changed(self, spin_button):
         assessment = spin_button.get_value()

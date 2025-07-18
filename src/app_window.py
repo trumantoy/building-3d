@@ -40,10 +40,11 @@ class AppWindow (Gtk.ApplicationWindow):
         self.view_controller.add_camera(self.persp_camera)
         self.view_controller.add_camera(self.ortho_camera)
 
-        self.geom_panel = self.stack.get_visible_child()
+        self.panel = self.stack.get_visible_child()
         self.widget.set_draw_func(self.draw, self.editor)
         self.viewbar.set_controller(self.view_controller)
-        self.hotbar.set_viewbar(self.widget, self.viewbar, self.geom_panel, self.editor)
+        self.hotbar.set_viewbar(self.widget, self.viewbar, self.panel, self.editor)
+        self.panel.set_viewbar(self.viewbar)
 
         action = Gio.SimpleAction.new('import', None)
         action.connect('activate', self.file_import)
@@ -104,7 +105,9 @@ class AppWindow (Gtk.ApplicationWindow):
         if motion_controller: self.add_controller(motion_controller)
 
     def file_close(self,sender, *args):
-        pass
+        for i,item in enumerate(self.panel.model):
+            self.editor.remove(item.obj)
+        self.panel.model.remove_all()        
 
     def file_export(self,sender, *args):
         dialog = Gtk.FileDialog()
@@ -126,6 +129,14 @@ class AppWindow (Gtk.ApplicationWindow):
             except:
                 return
             
+        # for i, sub_obj in enumerate(src_obj.children):
+        #     if type(sub_obj) == PointCloud:
+        #         points = sub_obj.geometry.positions.data + sub_obj.local.position
+        #         roof_points, building_points = extract_roof_by_z_density(points)
+        #         if roof_points is None: continue
+        #         name = os.path.splitext(sub_obj.name)[0]
+        #         np.savetxt(os.path.join(points_input_dir, f'{name}.xyz'), roof_points)
+
             self.content.to_file(file.get_path())
         dialog.save(None, None, select_file) 
 
@@ -159,7 +170,7 @@ class AppWindow (Gtk.ApplicationWindow):
             def do_close_request(win):
                 obj = dlg.output()
                 self.editor.add(obj)
-                self.geom_panel.add(obj)
+                self.panel.add(obj)
 
             dlg.connect('close_request', do_close_request)
             dlg.set_modal(True)  # 设置为模态窗口
@@ -169,11 +180,11 @@ class AppWindow (Gtk.ApplicationWindow):
         dialog.open(None, None, select_file)
 
     def building_divide(self,sender, *args):
-        i = self.geom_panel.selection_model.get_selected()
+        i = self.panel.selection_model.get_selected()
         if i == Gtk.INVALID_LIST_POSITION:
             return
 
-        tree_row = self.geom_panel.selection_model.get_item(i)
+        tree_row = self.panel.selection_model.get_item(i)
         if tree_row.get_depth():
             return
 
@@ -186,7 +197,7 @@ class AppWindow (Gtk.ApplicationWindow):
         dlg.input(item.obj)
         
         def do_close_request(win):
-            self.geom_panel.add_sub(item,dlg.output())
+            self.panel.add_sub(item,dlg.output())
 
         dlg.connect('close_request', do_close_request)
         dlg.set_modal(True)  # 设置为模态窗口
@@ -194,11 +205,11 @@ class AppWindow (Gtk.ApplicationWindow):
         dlg.present()
 
     def building_reconstruct(self,sender, *args):
-        i = self.geom_panel.selection_model.get_selected()
+        i = self.panel.selection_model.get_selected()
         if i == Gtk.INVALID_LIST_POSITION:
             return
 
-        tree_row = self.geom_panel.selection_model.get_item(i)
+        tree_row = self.panel.selection_model.get_item(i)
         if tree_row.get_depth():
             return
 
@@ -211,7 +222,7 @@ class AppWindow (Gtk.ApplicationWindow):
         dlg.input(item.obj)
 
         def do_close_request(win):
-            self.geom_panel.add_sub(item,dlg.output())
+            self.panel.add_sub(item,dlg.output())
             
             for i, sub_obj in enumerate(item.obj.children):
                 if type(sub_obj) != PointCloud:
@@ -224,11 +235,11 @@ class AppWindow (Gtk.ApplicationWindow):
         dlg.present()
 
     def building_assess(self,sender, *args):
-        i = self.geom_panel.selection_model.get_selected()
+        i = self.panel.selection_model.get_selected()
         if i == Gtk.INVALID_LIST_POSITION:
             return
 
-        tree_row = self.geom_panel.selection_model.get_item(i)
+        tree_row = self.panel.selection_model.get_item(i)
         if tree_row.get_depth():
             return
 
@@ -249,11 +260,11 @@ class AppWindow (Gtk.ApplicationWindow):
         dlg.present()
 
     def building_texture(self,sender, *args):
-        i = self.geom_panel.selection_model.get_selected()
+        i = self.panel.selection_model.get_selected()
         if i == Gtk.INVALID_LIST_POSITION:
             return
 
-        tree_row = self.geom_panel.selection_model.get_item(i)
+        tree_row = self.panel.selection_model.get_item(i)
         if tree_row.get_depth():
             return
 
