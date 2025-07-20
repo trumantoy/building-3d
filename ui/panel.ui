@@ -1,5 +1,33 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <interface>
+    <menu id="popover_menu">
+        <section>
+            <item>
+            <attribute name="label" translatable="yes">添加点云</attribute>
+            <attribute name="action">win.file_add</attribute>
+            </item>
+        </section>
+        <section>
+            <item>
+            <attribute name="label" translatable="yes">深度学习-建筑物分割</attribute>
+            <attribute name="action">win.building_divide</attribute>
+            </item>
+            <item>
+            <attribute name="label" translatable="yes">深度学习-建筑物重建</attribute>
+            <attribute name="action">win.building_reconstruct</attribute>
+            </item>
+            <item>
+            <attribute name="label" translatable="yes">深度学习-建筑物评估</attribute>
+            <attribute name="action">win.building_assess</attribute>
+            </item>
+            <item>
+            <attribute name="label" translatable="yes">深度学习-建筑物纹理</attribute>
+            <attribute name="action">win.building_texture</attribute>
+            </item>
+        </section>
+    </menu>
+
+
     <template class="Panel" parent="GtkPaned">
         <!-- 设置为水平分隔，若要垂直分隔，将值改为 vertical -->
         <property name="orientation">vertical</property>

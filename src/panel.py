@@ -20,16 +20,14 @@ class Panel (Gtk.Paned):
     spin_x = Gtk.Template.Child('x')
     spin_y = Gtk.Template.Child('y')
     spin_z = Gtk.Template.Child('z')
-        
+
+    menu = Gtk.Template.Child('popover_menu')
+
     def __init__(self):
         Gtk.StyleContext.add_provider_for_display(self.get_display(),self.provider,Gtk.STYLE_PROVIDER_PRIORITY_USER)
 
         self.model = Gio.ListStore(item_type=GObject.Object)
-
-        def create_model(item):
-            return item.model
-
-        self.tree_model = Gtk.TreeListModel.new(self.model,passthrough=False,autoexpand=False,create_func=create_model)
+        self.tree_model = Gtk.TreeListModel.new(self.model,passthrough=False,autoexpand=False,create_func=lambda item: item.model)
 
         self.selection_model = Gtk.SingleSelection.new(self.tree_model)
         self.selection_model.connect("selection-changed", self.item_selection_changed)
@@ -44,7 +42,25 @@ class Panel (Gtk.Paned):
         
         self.roofcolor.set_dialog(Gtk.ColorDialog())
         self.roomcolor.set_dialog(Gtk.ColorDialog())
-    
+
+        # 创建右键点击手势
+        right_click_gesture = Gtk.GestureClick()
+        right_click_gesture.set_button(3)  # 3 代表鼠标右键
+        right_click_gesture.connect("pressed", self.listview_right_clicked, self.geoms)
+        self.geoms.add_controller(right_click_gesture)
+
+    def listview_right_clicked(self, gesture, n_press, x, y, listview):
+        i = listview.get_model().get_selected()
+        
+        popover = Gtk.PopoverMenu()
+        popover.set_menu_model(self.menu)
+        popover.set_parent(listview)
+        rect = Gdk.Rectangle()
+        rect.x = x
+        rect.y = y
+        popover.set_pointing_to(rect)
+        popover.popup()
+
     def set_viewbar(self,viewbar):
         self.viewbar = viewbar
 
@@ -113,7 +129,7 @@ class Panel (Gtk.Paned):
         if self.model.get_n_items() == 1:
             self.selection_model.set_selected(0)
             self.item_selection_changed(self.selection_model, 0, 1)
-
+        return item
     def add_sub(self,item,objs):
         for obj in objs:
             sub_item = GObject.Object()

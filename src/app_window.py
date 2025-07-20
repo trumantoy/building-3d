@@ -8,6 +8,8 @@ import numpy as np
 import pygfx as gfx
 from pathlib import Path
 import os
+import shutil
+import trimesh
 
 from simtoy import *
 from panel import *
@@ -40,43 +42,11 @@ class AppWindow (Gtk.ApplicationWindow):
         self.view_controller.add_camera(self.persp_camera)
         self.view_controller.add_camera(self.ortho_camera)
 
-        self.panel = self.stack.get_visible_child()
+        self.panel : Panel = self.stack.get_visible_child()
         self.widget.set_draw_func(self.draw, self.editor)
         self.viewbar.set_controller(self.view_controller)
         self.hotbar.set_viewbar(self.widget, self.viewbar, self.panel, self.editor)
         self.panel.set_viewbar(self.viewbar)
-
-        action = Gio.SimpleAction.new('import', None)
-        action.connect('activate', self.file_import)
-        self.add_action(action)
-
-        action = Gio.SimpleAction.new('export', None)
-        action.connect('activate', self.file_export)
-        self.add_action(action)
-
-        action = Gio.SimpleAction.new('close', None)
-        action.connect('activate', self.file_close)
-        self.add_action(action)
-
-        action = Gio.SimpleAction.new('算法', None)
-        action.connect('activate', lambda _: True)
-        self.add_action(action)
-
-        action = Gio.SimpleAction.new('building_divide', None)
-        action.connect('activate', self.building_divide)
-        self.add_action(action)
-
-        action = Gio.SimpleAction.new('building_reconstruct', None)
-        action.connect('activate', self.building_reconstruct)
-        self.add_action(action)
-
-        action = Gio.SimpleAction.new('building_assess', None)
-        action.connect('activate', self.building_assess)
-        self.add_action(action)
-
-        action = Gio.SimpleAction.new('building_texture', None)
-        action.connect('activate', self.building_texture)
-        self.add_action(action)
 
         zoom_controller = Gtk.EventControllerScroll.new(Gtk.EventControllerScrollFlags(Gtk.EventControllerScrollFlags.VERTICAL))
         zoom_controller.connect("scroll", lambda sender,dx,dy: self.renderer.dispatch_event(gfx.WheelEvent('wheel',dx=0.0,dy=dy*100,x=0,y=0,time_stamp=time.perf_counter())))
@@ -105,64 +75,171 @@ class AppWindow (Gtk.ApplicationWindow):
         if motion_controller: self.add_controller(motion_controller)
 
         
+        action = Gio.SimpleAction.new('import', None)
+        action.connect('activate', self.file_import)
+        self.add_action(action)
+
+        action = Gio.SimpleAction.new('export', None)
+        action.connect('activate', self.file_export)
+        self.add_action(action)
+
+        action = Gio.SimpleAction.new('close', None)
+        action.connect('activate', self.file_close)
+        self.add_action(action)
+
+        action = Gio.SimpleAction.new('file_add', None)
+        action.connect('activate', self.file_add)
+        self.add_action(action)
+
+        action = Gio.SimpleAction.new('building_divide', None)
+        action.connect('activate', self.building_divide)
+        self.add_action(action)
+
+        action = Gio.SimpleAction.new('building_reconstruct', None)
+        action.connect('activate', self.building_reconstruct)
+        self.add_action(action)
+
+        action = Gio.SimpleAction.new('building_assess', None)
+        action.connect('activate', self.building_assess)
+        self.add_action(action)
+
+        action = Gio.SimpleAction.new('building_texture', None)
+        action.connect('activate', self.building_texture)
+        self.add_action(action)
+
         from building_division_dialog import BuildingDivisionDialog
         self.division_dlg = BuildingDivisionDialog()
 
-    def file_close(self,sender, *args):
-        for i,item in enumerate(self.panel.model):
-            self.editor.remove(item.obj)
-        self.panel.model.remove_all()        
+    def draw(self,receiver, cr, area_w, area_h, editor : Editor):
+        width,height = self.canvas.get_physical_size()
+
+        if width != area_w or height != area_h: 
+            self.canvas = wgpu.gui.offscreen.WgpuCanvas(size=(area_w,area_h))
+            self.renderer = gfx.renderers.WgpuRenderer(self.canvas)
+            self.view_controller.register_events(self.renderer)
+
+        if '透视' == self.viewbar.view_mode.get_label():
+            self.renderer.render(self.editor, self.persp_camera)
+        else:
+            self.renderer.render(self.editor, self.ortho_camera)
+        
+        img : np.ndarray = np.asarray(self.canvas.draw())
+        img_h,img_w,img_ch = img.shape
+        img = np.asarray(img[..., [2, 1, 0, 3]]).copy()
+        
+        stride = cairo.ImageSurface.format_stride_for_width(cairo.FORMAT_ARGB32, img_w)
+        surface = cairo.ImageSurface.create_for_data(img.data, cairo.FORMAT_ARGB32, img_w, img_h, stride)
+        cr.set_source_surface(surface, 0, 0)
+        cr.paint()
+
+        self.editor.step()
+        GLib.idle_add(receiver.queue_draw)
+
+    def file_import(self, sender, args):
+        dialog = Gtk.FileDialog()
+        dialog.set_modal(True)
+
+        def select_folder(dialog, result): 
+            file_path = None
+            try:
+                file = dialog.select_folder_finish(result)
+                file_path = file.get_path()
+            except:
+                return
+
+            # 使用 os.walk 遍历文件夹
+            for e in [e for e in os.scandir(file_path) if e.is_file()]:
+                if not e.path.endswith('.las'):
+                    continue
+
+                points = np.loadtxt(e.path,dtype=np.float32,usecols=(0, 1, 2))
+                colors = np.loadtxt(e.path+'.colors',dtype=np.float32,usecols=(0, 1, 2))
+                
+                geometry = gfx.Geometry(positions=points, colors=colors)
+                material = gfx.PointsMaterial(color_mode="vertex", size=1)
+                obj = PointCloud(geometry,material)
+                obj.name = e.name
+
+                self.editor.add(obj)
+                item = self.panel.add(obj)
+
+                children_dir = os.path.join(file_path,f'_{e.name}')
+                sub_objs = []
+                for e in [e for e in os.scandir(children_dir) if e.is_file]:
+                    if e.path.endswith('.npy'):
+                        sub_points = np.loadtxt(e.path,dtype=np.float32,usecols=[0,1,2])
+                        sub_colors = np.loadtxt(e.path+'.colors',dtype=np.float32,usecols=[0,1,2])
+                        geometry = gfx.Geometry(positions=sub_points, colors=sub_colors)
+                        material = gfx.PointsMaterial(color_mode="vertex", size=1)
+                        sub_obj = PointCloud(geometry,material)
+                        sub_obj.name = e.name
+                        sub_objs.append(sub_obj)
+                        continue
+
+                    if e.path.endswith('.obj'):
+
+                        continue
+                
+                obj.add(*sub_objs)
+                self.panel.add_sub(item,sub_objs)
+
+        dialog.select_folder(None, None, select_folder) 
 
     def file_export(self,sender, *args):
         dialog = Gtk.FileDialog()
         dialog.set_modal(True)
 
-        # filter_text = Gtk.FileFilter()
-        # filter_text.set_name("点云") 
-        # filter_text.add_pattern('*.las')
-        # filter_text.add_pattern('*.ply')
+        filter_text = Gtk.FileFilter()
+        filter_text.set_name("点云")
         
-        # filters = Gio.ListStore.new(Gtk.FileFilter)
-        # filters.append(filter_text)
-        # dialog.set_filters(filters)
-        # dialog.set_default_filter(filter_text)
+        filters = Gio.ListStore.new(Gtk.FileFilter)
+        filters.append(filter_text)
+        dialog.set_filters(filters)
+        dialog.set_default_filter(filter_text)
 
-        def select_folder(dialog, result): 
+        def save_file(dialog, result):
+            file_path = None
+
             try:
-                folder = dialog.select_folder_finish(result)
-                folder_path = folder.get_path()
-                
-                i = self.panel.selection_model.get_selected()
-                if i == Gtk.INVALID_LIST_POSITION:
-                    return
-
-                tree_row = self.panel.selection_model.get_item(i)
-                if tree_row.get_depth():
-                    return
-
-                item = tree_row.get_item()
-                if item.model.get_n_items():
-                    return
-                
-                import trimesh
-                
-                for i, item in enumerate(item.model):
-                    if type(item.obj) != Building:
-                        continue
-
-                    sub_obj = item.obj
-                    name = os.path.splitext(item.obj.name)[0]
-                    positions = sub_obj.geometry.positions.data + sub_obj.local.position
-                    faces = sub_obj.geometry.indices.data if sub_obj.geometry.indices is not None else None
-                    tm = trimesh.Trimesh(vertices=positions, faces=faces)
-                    name = os.path.splitext(sub_obj.name)[0]
-                    tm.export(os.path.join(building_input_dir, f'{name}.obj'))
+                file = dialog.save_finish(result)
+                file_path = file.get_path()
             except:
                 return
+            
+            shutil.rmtree(file_path, ignore_errors=True)
+            os.makedirs(file_path, exist_ok=True)
 
-        dialog.select_folder(None, None, select_folder) 
+            for i, item in enumerate(self.panel.model):
+                points = item.obj.geometry.positions.data + item.obj.local.position
+                np.savetxt(os.path.join(file_path, item.obj.name), points)
+                np.savetxt(os.path.join(file_path, item.obj.name+'.colors'), item.obj.geometry.colors.data)
 
-    def file_import(self, sender, args):
+                children_dir = os.path.join(file_path, f'_{item.obj.name}')
+                os.makedirs(children_dir, exist_ok=True)
+        
+                for j, sub_item in enumerate(item.model):
+                    if type(sub_item.obj) == PointCloud:
+                        points = sub_item.obj.geometry.positions.data + sub_item.obj.local.position
+                        np.savetxt(os.path.join(children_dir, sub_item.obj.name), points)
+                        np.savetxt(os.path.join(children_dir, sub_item.obj.name+'.colors'), sub_item.obj.geometry.colors.data)
+                        continue
+
+                    if type(sub_item.ojb) == Building:
+                        positions = item.obj.geometry.positions.data + item.obj.local.position
+                        faces = item.obj.geometry.indices.data if item.obj.geometry.indices is not None else None
+                        tm = trimesh.Trimesh(vertices=positions, faces=faces)
+                        name = os.path.splitext(sub_obj.name)[0]
+                        tm.export(os.path.join(building_input_dir, f'{name}.obj'))
+                        continue
+        dialog.save(None, None, save_file)
+
+
+    def file_close(self,sender, *args):
+        for i,item in enumerate(self.panel.model):
+            self.editor.remove(item.obj)
+        self.panel.model.remove_all()
+
+    def file_add(self, sender, args):
         dialog = Gtk.FileDialog()
         dialog.set_modal(True)
 
@@ -196,11 +273,11 @@ class AppWindow (Gtk.ApplicationWindow):
 
             dlg.connect('close_request', do_close_request)
             dlg.set_modal(True)  # 设置为模态窗口
-            dlg.set_transient_for(self)  # 设置父窗口
+            dlg.set_transient_for(self.get_root())  # 设置父窗口
             dlg.present()
 
         dialog.open(None, None, select_file)
-
+    
     def building_divide(self,sender, *args):
         i = self.panel.selection_model.get_selected()
         if i == Gtk.INVALID_LIST_POSITION:
@@ -220,7 +297,7 @@ class AppWindow (Gtk.ApplicationWindow):
             self.panel.add_sub(item,self.division_dlg.output())
 
         if 'division_dlg_slot_id' in vars(self):
-            self.division_dlg.disconnect(self.division_dlg_slot_id)
+            self.division_dlg.disconnect(division_dlg_slot_id)
 
         self.division_dlg_slot_id = self.division_dlg.connect('close_request', do_close_request)
         self.division_dlg.set_modal(True)  # 设置为模态窗口
@@ -307,27 +384,4 @@ class AppWindow (Gtk.ApplicationWindow):
         dlg.set_transient_for(self)  # 设置父窗口
         dlg.present()
 
-    def draw(self,receiver, cr, area_w, area_h, editor : Editor):
-        width,height = self.canvas.get_physical_size()
-
-        if width != area_w or height != area_h: 
-            self.canvas = wgpu.gui.offscreen.WgpuCanvas(size=(area_w,area_h))
-            self.renderer = gfx.renderers.WgpuRenderer(self.canvas)
-            self.view_controller.register_events(self.renderer)
-
-        if '透视' == self.viewbar.view_mode.get_label():
-            self.renderer.render(self.editor, self.persp_camera)
-        else:
-            self.renderer.render(self.editor, self.ortho_camera)
-        
-        img : np.ndarray = np.asarray(self.canvas.draw())
-        img_h,img_w,img_ch = img.shape
-        img = np.asarray(img[..., [2, 1, 0, 3]]).copy()
-        
-        stride = cairo.ImageSurface.format_stride_for_width(cairo.FORMAT_ARGB32, img_w)
-        surface = cairo.ImageSurface.create_for_data(img.data, cairo.FORMAT_ARGB32, img_w, img_h, stride)
-        cr.set_source_surface(surface, 0, 0)
-        cr.paint()
-
-        self.editor.step()
-        GLib.idle_add(receiver.queue_draw)
+    

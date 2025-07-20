@@ -3,66 +3,21 @@
     <menu id="popover_menu">
     <section>
         <item>
-          <attribute name="label" translatable="yes">文件-导入</attribute>
+          <attribute name="label" translatable="yes">导入</attribute>
           <attribute name="action">win.import</attribute>
         </item>
         <item>
-          <attribute name="label" translatable="yes">文件-导出</attribute>
+          <attribute name="label" translatable="yes">导出</attribute>
           <attribute name="action">win.export</attribute>
         </item>
     </section>
 
     <section>
         <item>
-          <attribute name="label" translatable="yes">文件-关闭</attribute>
+          <attribute name="label" translatable="yes">关闭</attribute>
           <attribute name="action">win.close</attribute>
         </item>
     </section>
-    
-    <section>
-        <item>
-          <attribute name="label" translatable="yes">显示-法线</attribute>
-          <attribute name="action"></attribute>
-        </item>
-        <item>
-          <attribute name="label" translatable="yes">算法-颜色</attribute>
-          <attribute name="action"></attribute>
-        </item>
-    </section>
-    <section>
-        <item>
-          <attribute name="label" translatable="yes">算法-降噪</attribute>
-          <attribute name="action"></attribute>
-        </item>
-        <item>
-          <attribute name="label" translatable="yes">算法-重采样</attribute>
-          <attribute name="action"></attribute>
-        </item>
-        <item>
-          <attribute name="label" translatable="yes">算法-特征匹配</attribute>
-          <attribute name="action"></attribute>
-        </item>
-    </section>
-    <section>
-        <item>
-          <attribute name="label" translatable="yes">深度学习-建筑物分割</attribute>
-          <attribute name="action">win.building_divide</attribute>
-        </item>
-        <item>
-          <attribute name="label" translatable="yes">深度学习-建筑物重建</attribute>
-          <attribute name="action">win.building_reconstruct</attribute>
-        </item>
-        <item>
-          <attribute name="label" translatable="yes">深度学习-建筑物评估</attribute>
-          <attribute name="action">win.building_assess</attribute>
-        </item>
-        <item>
-          <attribute name="label" translatable="yes">深度学习-建筑物纹理</attribute>
-          <attribute name="action">win.building_texture</attribute>
-        </item>
-
-    </section>
-
   </menu>
 
   <template class="AppWindow" parent="GtkApplicationWindow">
