@@ -35,10 +35,14 @@ class BuildingDivisionDialog (Gtk.Window):
         self.set_titlebar(bar)
         
         self.working_dir = 'algorithm'
-        self.input_file =  os.path.join(self.working_dir,'input','to_divide.npy')
+        self.input_dir = os.path.join(self.working_dir,'input')
+        self.input_file =  os.path.join(self.input_dir,'to_divide.npy')
         self.output_dir = os.path.join(self.working_dir,'output','divided')
-        self.process = sp.Popen([f'{self.working_dir}/divide.exe'],stdout=sp.PIPE,encoding='utf-8',text=True,cwd=self.working_dir)
-    
+        self.process = sp.Popen([f'{self.working_dir}/divide.exe'],stdin=sp.PIPE,stdout=sp.PIPE,encoding='utf-8',text=True,cwd=self.working_dir)
+
+    def __del__(self):
+        self.process.kill()
+        
     def input(self, obj):
         self.result = []
         self.src_obj = obj
@@ -48,8 +52,9 @@ class BuildingDivisionDialog (Gtk.Window):
 
         if os.path.exists(self.input_file): os.remove(self.input_file)
         shutil.rmtree(self.output_dir,ignore_errors=True)
-        os.makedirs(self.output_dir,exist_ok=True)
 
+        os.makedirs(self.input_dir,exist_ok=True)
+        os.makedirs(self.output_dir,exist_ok=True)
         np.save(self.input_file, pc)
 
         self.stdout_thread = threading.Thread(target=self.divide,args=[])
@@ -62,7 +67,7 @@ class BuildingDivisionDialog (Gtk.Window):
         count = None
         j = 1
 
-        while self.poll() is None:
+        while self.process.poll() is None:
             line = self.process.stdout.readline().strip()
             if not line: continue
             if not count:
@@ -72,7 +77,7 @@ class BuildingDivisionDialog (Gtk.Window):
             j += 1
             fraction = j / count
             self.progress.set_fraction(fraction)
-            file_path = os.path.join(self.working_directory,line)
+            file_path = os.path.join(self.working_dir,line)
             print(file_path)
             positions = np.load(file_path).astype(np.float32)
             self.result.append([positions,file_path])
@@ -80,7 +85,7 @@ class BuildingDivisionDialog (Gtk.Window):
         GLib.idle_add(self.close)
 
         self.process = sp.Popen([f'{self.working_dir}/divide.exe'],stdout=sp.PIPE,encoding='utf-8',text=True,cwd=self.working_dir)
-
+    
     def output(self):
         self.src_obj.material.opacity = 0
         

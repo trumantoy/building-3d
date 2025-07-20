@@ -219,8 +219,10 @@ class AppWindow (Gtk.ApplicationWindow):
         def do_close_request(win):
             self.panel.add_sub(item,self.division_dlg.output())
 
-        self.division_dlg.disconnect_by_func(do_close_request)
-        self.division_dlg.connect('close_request', do_close_request)
+        if 'division_dlg_slot_id' in vars(self):
+            self.division_dlg.disconnect(self.division_dlg_slot_id)
+
+        self.division_dlg_slot_id = self.division_dlg.connect('close_request', do_close_request)
         self.division_dlg.set_modal(True)  # 设置为模态窗口
         self.division_dlg.set_transient_for(self)  # 设置父窗口
         self.division_dlg.present()
