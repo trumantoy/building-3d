@@ -37,24 +37,27 @@ class BuildingReconstructionDialog (Gtk.Window):
         bar.set_show_title_buttons(False)
         self.set_titlebar(bar)
 
-        self.connect('map', self.on_map)
+        self.working_dir = 'algorithm'
+
+        # pyinstaller reconstruct.py --contents-directory _reconstruct --collect-all=scipy --collect-all=skimage --exclude-module=cupy; mkdir dist/reconstruct/input; cp -r input/pth_files dist/reconstruct/input
+        self.process = sp.Popen([f'{self.working_dir}/reconstruct.exe'],stdin=sp.PIPE,encoding='utf-8',text=True,cwd=self.working_dir)
+
+
+
+    def __del__(self):
+        self.process.kill()
 
     def input(self, obj : PointCloud):
         if not obj: return
-        self.src_obj = obj
+        self.src_obj = obj 
         self.thread = threading.Thread(target=self.reconstructing, args=[obj])
- 
-    def on_map(self,*args):
         self.thread.start()
     
     def reconstructing(self,obj):
-        self.working_directory = working_directory = 'algorithm'
-        building_input_dir = os.path.join(working_directory,'input','full_xyz_files')
-        roof_input_dir = os.path.join(working_directory,'input','roof_xyz_files')
-        self.building_output_dir = building_output_dir = os.path.join(working_directory,'output','complete_mesh')
-        # self.roof_output_dir = roof_output_dir = os.path.join(working_directory,'output','roof_wireframe')
-        self.roof_output_dir = roof_output_dir = os.path.join(working_directory,'output','roof_mesh')
-        self.assessment_output_file = os.path.join(working_directory,'output','assessment_results_mesh_oabj.txt')
+        building_input_dir = os.path.join(self.working_dir,'input','full_xyz_files')
+        roof_input_dir = os.path.join(self.working_dir,'input','roof_xyz_files')
+        self.building_output_dir = building_output_dir = os.path.join(self.working_dir,'output','complete_mesh')
+        self.roof_output_dir = roof_output_dir = os.path.join(self.working_dir,'output','roof_mesh')
 
         shutil.rmtree(building_input_dir,ignore_errors=True)
         shutil.rmtree(roof_input_dir,ignore_errors=True)
@@ -77,10 +80,11 @@ class BuildingReconstructionDialog (Gtk.Window):
             np.savetxt(os.path.join(building_input_dir, f'{name}.xyz'), building_points)
             np.savetxt(os.path.join(roof_input_dir, f'{name}.xyz'), roof_points)
 
-        # pyinstaller reconstruct.py --contents-directory _reconstruct --collect-all=scipy --collect-all=skimage --exclude-module=cupy; mkdir dist/reconstruct/input; cp -r input/pth_files dist/reconstruct/input
-        p = sp.Popen([f'{working_directory}/reconstruct.exe'],cwd=working_directory)
+        self.process.stdin.write(f'\n')
+        self.process.stdin.flush()
+
         i = 1
-        while p.poll() is None:
+        while self.process.poll() is None:
             i = len([e.name for e in os.scandir(self.building_output_dir) if e.is_file()])
             fraction = i / count
             self.progress.set_fraction(fraction)
@@ -127,7 +131,8 @@ class BuildingReconstructionDialog (Gtk.Window):
             self.src_obj.add(building)
             self.objs.append(building)
 
-        GLib.idle_add(self.close)
+        self.process = sp.Popen([f'{self.working_dir}/reconstruct.exe'],stdin=sp.PIPE,encoding='utf-8',text=True,cwd=self.working_dir)
+        GLib.idle_add(self.unmap)
 
     def output(self):
         return self.objs

@@ -36,6 +36,11 @@ class BuildingAssessmentDialog (Gtk.Window):
         self.set_titlebar(bar)
     
         self.connect('map', self.on_map)
+        self.working_dir = 'algorithm'
+        self.process = sp.Popen([f'{self.working_dir}/assess.exe'],stdin=sp.PIPE,encoding='utf-8',text=True,cwd=self.working_dir)
+
+    def __del__(self):
+        self.process.kill()
 
     def input(self,obj):
         self.src_obj = obj
@@ -45,10 +50,9 @@ class BuildingAssessmentDialog (Gtk.Window):
         self.thread.start()
     
     def assessing(self,src_obj):
-        working_directory = 'algorithm'
-        mesh_input_dir = os.path.join(working_directory,'input','roof_mesh')
-        points_input_dir = os.path.join(working_directory,'input','roof_points')
-        self.assessment_output_file = assessment_output_file = os.path.join(working_directory,'output','assessment_results_mesh_oabj.txt')
+        mesh_input_dir = os.path.join(self.working_dir,'input','roof_mesh')
+        points_input_dir = os.path.join(self.working_dir,'input','roof_points')
+        self.assessment_output_file = assessment_output_file = os.path.join(self.working_dir,'output','assessment_results_mesh_oabj.txt')
 
         shutil.rmtree(mesh_input_dir,ignore_errors=True)
         shutil.rmtree(points_input_dir,ignore_errors=True)
@@ -71,10 +75,13 @@ class BuildingAssessmentDialog (Gtk.Window):
                         f.write(sub_obj.roof_mesh_content.getvalue())
                     
         # pyinstaller.exe assess.py
-        p = sp.Popen([f'{working_directory}/assess.exe'],cwd=working_directory)
-        p.wait()
+        
+        self.process.stdin.write(f'\n')
+        self.process.stdin.flush()
+        self.process.wait()
 
-        GLib.idle_add(self.close)
+        self.process = sp.Popen([f'{self.working_dir}/assess.exe'],stdin=sp.PIPE,encoding='utf-8',text=True,cwd=self.working_dir)
+        GLib.idle_add(self.unmap)
 
     def output(self):
         assessment = dict()

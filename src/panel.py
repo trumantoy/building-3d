@@ -130,6 +130,7 @@ class Panel (Gtk.Paned):
             self.selection_model.set_selected(0)
             self.item_selection_changed(self.selection_model, 0, 1)
         return item
+    
     def add_sub(self,item,objs):
         for obj in objs:
             sub_item = GObject.Object()
@@ -162,10 +163,10 @@ class Panel (Gtk.Paned):
         camera = self.viewbar.get_view_camera()
         camera.show_object(item.obj)
 
-    def item_selection_changed(self, selection_model, position, n_items):
+    def item_selection_changed(self, selection_model, i, n_items):
         i = selection_model.get_selected()
         item = selection_model.get_item(i).get_item()
-
+        print(item.obj,type(item.obj) == PointCloud)
         self.spin_x.set_value(item.obj.local.x)
         self.spin_y.set_value(item.obj.local.y)
         self.spin_z.set_value(item.obj.local.z)
@@ -173,17 +174,23 @@ class Panel (Gtk.Paned):
         if type(item.obj) == PointCloud:
             self.expander_position.set_visible(True)
             self.expander_pointcloud.set_visible(True)
-            self.expander_mesh.set_visible(False)        
-            item.obj.set_bounding_box_visible(True)    
+            self.expander_mesh.set_visible(False)
+            item.obj.set_bounding_box_visible(True)
         elif type(item.obj) == Building:
             self.expander_position.set_visible(True)
             self.expander_pointcloud.set_visible(False)
             self.expander_mesh.set_visible(True)
+            del self.last_item 
         else:
             self.expander_position.set_visible(False)
             self.expander_pointcloud.set_visible(False)
             self.expander_mesh.set_visible(False)
+            del self.last_item 
 
+        if 'last_item' in vars(self):
+            self.last_item.obj.set_bounding_box_visible(False)
+
+        self.last_item = item
 
     @Gtk.Template.Callback()
     def assessment_value_changed(self, spin_button):

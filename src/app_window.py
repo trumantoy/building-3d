@@ -74,7 +74,6 @@ class AppWindow (Gtk.ApplicationWindow):
         if zoom_controller: self.add_controller(zoom_controller)
         if motion_controller: self.add_controller(motion_controller)
 
-        
         action = Gio.SimpleAction.new('import', None)
         action.connect('activate', self.file_import)
         self.add_action(action)
@@ -109,6 +108,15 @@ class AppWindow (Gtk.ApplicationWindow):
 
         from building_division_dialog import BuildingDivisionDialog
         self.division_dlg = BuildingDivisionDialog()
+        self.division_dlg.set_transient_for(self)  # 设置父窗口
+        
+        from building_reconstruction_dialog import BuildingReconstructionDialog
+        self.reconstruction_dlg = BuildingReconstructionDialog()
+        self.reconstruction_dlg.set_transient_for(self)  # 设置父窗口
+
+        from building_assessment_dialog import BuildingAssessmentDialog
+        self.assessment_dlg = BuildingAssessmentDialog()
+        self.assessment_dlg.set_transient_for(self)  # 设置父窗口
 
     def draw(self,receiver, cr, area_w, area_h, editor : Editor):
         width,height = self.canvas.get_physical_size()
@@ -149,6 +157,7 @@ class AppWindow (Gtk.ApplicationWindow):
 
             # 使用 os.walk 遍历文件夹
             for e in [e for e in os.scandir(file_path) if e.is_file()]:
+                print(e.name)
                 if not e.path.endswith('.las'):
                     continue
 
@@ -166,6 +175,7 @@ class AppWindow (Gtk.ApplicationWindow):
                 children_dir = os.path.join(file_path,f'_{e.name}')
                 sub_objs = []
                 for e in [e for e in os.scandir(children_dir) if e.is_file]:
+                    print(e.name)
                     if e.path.endswith('.npy'):
                         sub_points = np.loadtxt(e.path,dtype=np.float32,usecols=[0,1,2])
                         sub_colors = np.loadtxt(e.path+'.colors',dtype=np.float32,usecols=[0,1,2])
@@ -173,11 +183,39 @@ class AppWindow (Gtk.ApplicationWindow):
                         material = gfx.PointsMaterial(color_mode="vertex", size=1)
                         sub_obj = PointCloud(geometry,material)
                         sub_obj.name = e.name
+                        sub_obj.label.visible = False
                         sub_objs.append(sub_obj)
                         continue
 
-                    if e.path.endswith('.obj'):
+                    if e.path.endswith('.obj') and not e.path.endswith('.roof.obj'):                        
+                        mesh = gfx.load_mesh(e.path)[0]
+                        pc = mesh.geometry.positions.data
+                        x, y, z = pc[:, 0], pc[:, 1], pc[:, 2]
+                        offset = [(x.max()-x.min())/2,(y.max()-y.min())/2,0]
+                        origin = np.array([np.min(x),np.min(y),0])
+                        x = x - np.min(x)
+                        y = y - np.min(y)
+                        z = z
+                        pc = np.column_stack([x,y,z]) - [(x.max()-x.min())/2,(y.max()-y.min())/2,0]
+                        mesh.geometry.positions.data[:] = pc.astype(np.float32)
 
+                        mesh.material.side = gfx.VisibleSide.both
+                        mesh.material.color = (0.8, 0.8, 0.8)  # 设置材质颜色为白色
+                        mesh.material.shininess = 0  # 降低高光强度
+                        mesh.material.specular = (0.0, 0.0, 0.0, 1.0)  # 降低高光色
+                        mesh.material.emissive = (0.8, 0.8, 0.8)  # 设置微弱自发光
+                        mesh.material.flat_shading = True  # 启用平面着色
+
+                        building = Building()
+                        building.geometry = mesh.geometry
+                        building.material = mesh.material
+                        building.local.position = origin + offset
+                        building.name = e.name
+
+                        if os.path.exists(e.path+'.roof.obj'):         
+                            with open(e.path+ '.roof.obj', 'r') as f:
+                                building.roof_mesh_content = f.read()
+                        sub_objs.append(building)
                         continue
                 
                 obj.add(*sub_objs)
@@ -208,8 +246,10 @@ class AppWindow (Gtk.ApplicationWindow):
             
             shutil.rmtree(file_path, ignore_errors=True)
             os.makedirs(file_path, exist_ok=True)
+           
 
             for i, item in enumerate(self.panel.model):
+                print(item.obj.name)
                 points = item.obj.geometry.positions.data + item.obj.local.position
                 np.savetxt(os.path.join(file_path, item.obj.name), points)
                 np.savetxt(os.path.join(file_path, item.obj.name+'.colors'), item.obj.geometry.colors.data)
@@ -218,18 +258,21 @@ class AppWindow (Gtk.ApplicationWindow):
                 os.makedirs(children_dir, exist_ok=True)
         
                 for j, sub_item in enumerate(item.model):
+                    print(sub_item.obj.name)
                     if type(sub_item.obj) == PointCloud:
                         points = sub_item.obj.geometry.positions.data + sub_item.obj.local.position
                         np.savetxt(os.path.join(children_dir, sub_item.obj.name), points)
                         np.savetxt(os.path.join(children_dir, sub_item.obj.name+'.colors'), sub_item.obj.geometry.colors.data)
                         continue
 
-                    if type(sub_item.ojb) == Building:
-                        positions = item.obj.geometry.positions.data + item.obj.local.position
-                        faces = item.obj.geometry.indices.data if item.obj.geometry.indices is not None else None
+                    if type(sub_item.obj) == Building:
+                        positions = sub_item.obj.geometry.positions.data + sub_item.obj.local.position
+                        faces = sub_item.obj.geometry.indices.data if sub_item.obj.geometry.indices is not None else None
                         tm = trimesh.Trimesh(vertices=positions, faces=faces)
-                        name = os.path.splitext(sub_obj.name)[0]
-                        tm.export(os.path.join(building_input_dir, f'{name}.obj'))
+                        tm.export(os.path.join(children_dir, sub_item.obj.name))
+                        if sub_item.obj.roof_mesh_content:            
+                            with open(os.path.join(children_dir, sub_item.obj.name+'.roof.obj'),'w') as f:
+                                f.write(sub_item.obj.roof_mesh_content.getvalue())
                         continue
         dialog.save(None, None, save_file)
 
@@ -274,6 +317,7 @@ class AppWindow (Gtk.ApplicationWindow):
             dlg.connect('close_request', do_close_request)
             dlg.set_modal(True)  # 设置为模态窗口
             dlg.set_transient_for(self.get_root())  # 设置父窗口
+
             dlg.present()
 
         dialog.open(None, None, select_file)
@@ -295,14 +339,15 @@ class AppWindow (Gtk.ApplicationWindow):
         
         def do_close_request(win):
             self.panel.add_sub(item,self.division_dlg.output())
+            self.division_dlg.set_modal(False)  # 设置为模态窗口
 
         if 'division_dlg_slot_id' in vars(self):
-            self.division_dlg.disconnect(division_dlg_slot_id)
+            self.division_dlg.disconnect(self.division_dlg_slot_id)
 
-        self.division_dlg_slot_id = self.division_dlg.connect('close_request', do_close_request)
+        self.division_dlg_slot_id = self.division_dlg.connect('unmap', do_close_request)
         self.division_dlg.set_modal(True)  # 设置为模态窗口
-        self.division_dlg.set_transient_for(self)  # 设置父窗口
         self.division_dlg.present()
+        self.division_dlg.map()
 
     def building_reconstruct(self,sender, *args):
         i = self.panel.selection_model.get_selected()
@@ -317,22 +362,24 @@ class AppWindow (Gtk.ApplicationWindow):
         if 0 == item.model.get_n_items():
             return
 
-        from building_reconstruction_dialog import BuildingReconstructionDialog
-        dlg = BuildingReconstructionDialog()
-        dlg.input(item.obj)
+        self.reconstruction_dlg.input(item.obj)
 
         def do_close_request(win):
-            self.panel.add_sub(item,dlg.output())
+            self.reconstruction_dlg.set_modal(False)  # 设置为模态窗口
+            self.panel.add_sub(item,self.reconstruction_dlg.output())
             
             for i, sub_obj in enumerate(item.obj.children):
                 if type(sub_obj) != PointCloud:
                     continue
                 sub_obj.material.opacity = 0
-                
-        dlg.connect('close_request', do_close_request)
-        dlg.set_modal(True)  # 设置为模态窗口
-        dlg.set_transient_for(self)  # 设置父窗口
-        dlg.present()
+
+        if 'reconstruction_dlg_slot_id' in vars(self):
+            self.reconstruction_dlg.disconnect(self.reconstruction_dlg_slot_id)
+
+        self.reconstruction_dlg_slot_id = self.reconstruction_dlg.connect('unmap', do_close_request)
+        self.reconstruction_dlg.set_modal(True)  # 设置为模态窗口
+        self.reconstruction_dlg.present()
+        self.reconstruction_dlg.map()
 
     def building_assess(self,sender, *args):
         i = self.panel.selection_model.get_selected()
@@ -347,17 +394,19 @@ class AppWindow (Gtk.ApplicationWindow):
         if 0 == item.model.get_n_items():
             return
 
-        from building_assessment_dialog import BuildingAssessmentDialog
-        dlg = BuildingAssessmentDialog()
-        dlg.input(item.obj)
+        self.assessment_dlg.input(item.obj)
 
         def do_close_request(win):
-            dlg.output()
+            self.assessment_dlg.set_modal(False)  # 设置为模态窗口
+            self.assessment_dlg.output()
 
-        dlg.connect('close_request', do_close_request)
-        dlg.set_modal(True)  # 设置为模态窗口
-        dlg.set_transient_for(self)  # 设置父窗口
-        dlg.present()
+        if 'assessment_dlg_slot_id' in vars(self):
+            self.assessment_dlg.disconnect(self.assessment_dlg_slot_id)
+
+        self.assessment_dlg_slot_id = self.assessment_dlg.connect('unmap', do_close_request)
+        self.assessment_dlg.set_modal(True)  # 设置为模态窗口
+        self.assessment_dlg.present()
+        self.assessment_dlg.map()
 
     def building_texture(self,sender, *args):
         i = self.panel.selection_model.get_selected()

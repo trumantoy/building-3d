@@ -35,9 +35,6 @@ class BuildingDivisionDialog (Gtk.Window):
         self.set_titlebar(bar)
         
         self.working_dir = 'algorithm'
-        self.input_dir = os.path.join(self.working_dir,'input')
-        self.input_file =  os.path.join(self.input_dir,'to_divide.npy')
-        self.output_dir = os.path.join(self.working_dir,'output','divided')
         self.process = sp.Popen([f'{self.working_dir}/divide.exe'],stdin=sp.PIPE,stdout=sp.PIPE,encoding='utf-8',text=True,cwd=self.working_dir)
 
     def __del__(self):
@@ -46,16 +43,20 @@ class BuildingDivisionDialog (Gtk.Window):
     def input(self, obj):
         self.result = []
         self.src_obj = obj
-        pc = obj.geometry.positions.data + obj.local.position
 
         self.progress.set_fraction(0)
-
+            
+        self.input_dir = os.path.join(self.working_dir,'input')
+        self.input_file =  os.path.join(self.input_dir,'to_divide.npy')
+        self.output_dir = os.path.join(self.working_dir,'output','divided')
+        
         if os.path.exists(self.input_file): os.remove(self.input_file)
         shutil.rmtree(self.output_dir,ignore_errors=True)
 
         os.makedirs(self.input_dir,exist_ok=True)
         os.makedirs(self.output_dir,exist_ok=True)
-        np.save(self.input_file, pc)
+        points = obj.geometry.positions.data + obj.local.position
+        np.save(self.input_file, points)
 
         self.stdout_thread = threading.Thread(target=self.divide,args=[])
         self.stdout_thread.start()
@@ -82,12 +83,13 @@ class BuildingDivisionDialog (Gtk.Window):
             positions = np.load(file_path).astype(np.float32)
             self.result.append([positions,file_path])
 
-        GLib.idle_add(self.close)
+        self.process = sp.Popen([f'{self.working_dir}/divide.exe'],stdin=sp.PIPE,stdout=sp.PIPE,encoding='utf-8',text=True,cwd=self.working_dir)
+        GLib.idle_add(self.unmap)
 
-        self.process = sp.Popen([f'{self.working_dir}/divide.exe'],stdout=sp.PIPE,encoding='utf-8',text=True,cwd=self.working_dir)
-    
     def output(self):
         self.src_obj.material.opacity = 0
+        if not self.result:
+            return []
         
         pc = np.vstack([i[0] for i in self.result])
 
@@ -113,7 +115,7 @@ class BuildingDivisionDialog (Gtk.Window):
             material = gfx.PointsMaterial(color_mode="vertex", size=1)
             points = PointCloud(geometry,material)
             points.name = os.path.basename(file_path)
-            
+            points.label.visible = False
             objs.append(points)
 
         self.src_obj.add(*objs)
