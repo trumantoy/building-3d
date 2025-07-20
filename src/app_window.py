@@ -104,6 +104,10 @@ class AppWindow (Gtk.ApplicationWindow):
         if zoom_controller: self.add_controller(zoom_controller)
         if motion_controller: self.add_controller(motion_controller)
 
+        
+        from building_division_dialog import BuildingDivisionDialog
+        self.division_dlg = BuildingDivisionDialog()
+
     def file_close(self,sender, *args):
         for i,item in enumerate(self.panel.model):
             self.editor.remove(item.obj)
@@ -113,32 +117,50 @@ class AppWindow (Gtk.ApplicationWindow):
         dialog = Gtk.FileDialog()
         dialog.set_modal(True)
 
-        filter_text = Gtk.FileFilter()
-        filter_text.set_name("点云") 
-        filter_text.add_pattern('*.las')
-        filter_text.add_pattern('*.ply')
+        # filter_text = Gtk.FileFilter()
+        # filter_text.set_name("点云") 
+        # filter_text.add_pattern('*.las')
+        # filter_text.add_pattern('*.ply')
         
-        filters = Gio.ListStore.new(Gtk.FileFilter)
-        filters.append(filter_text)
-        dialog.set_filters(filters)
-        dialog.set_default_filter(filter_text)
+        # filters = Gio.ListStore.new(Gtk.FileFilter)
+        # filters.append(filter_text)
+        # dialog.set_filters(filters)
+        # dialog.set_default_filter(filter_text)
 
-        def select_file(dialog, result): 
+        def select_folder(dialog, result): 
             try:
-                file = dialog.save_finish(result)
+                folder = dialog.select_folder_finish(result)
+                folder_path = folder.get_path()
+                
+                i = self.panel.selection_model.get_selected()
+                if i == Gtk.INVALID_LIST_POSITION:
+                    return
+
+                tree_row = self.panel.selection_model.get_item(i)
+                if tree_row.get_depth():
+                    return
+
+                item = tree_row.get_item()
+                if item.model.get_n_items():
+                    return
+                
+                import trimesh
+                
+                for i, item in enumerate(item.model):
+                    if type(item.obj) != Building:
+                        continue
+
+                    sub_obj = item.obj
+                    name = os.path.splitext(item.obj.name)[0]
+                    positions = sub_obj.geometry.positions.data + sub_obj.local.position
+                    faces = sub_obj.geometry.indices.data if sub_obj.geometry.indices is not None else None
+                    tm = trimesh.Trimesh(vertices=positions, faces=faces)
+                    name = os.path.splitext(sub_obj.name)[0]
+                    tm.export(os.path.join(building_input_dir, f'{name}.obj'))
             except:
                 return
-            
-        # for i, sub_obj in enumerate(src_obj.children):
-        #     if type(sub_obj) == PointCloud:
-        #         points = sub_obj.geometry.positions.data + sub_obj.local.position
-        #         roof_points, building_points = extract_roof_by_z_density(points)
-        #         if roof_points is None: continue
-        #         name = os.path.splitext(sub_obj.name)[0]
-        #         np.savetxt(os.path.join(points_input_dir, f'{name}.xyz'), roof_points)
 
-            self.content.to_file(file.get_path())
-        dialog.save(None, None, select_file) 
+        dialog.select_folder(None, None, select_folder) 
 
     def file_import(self, sender, args):
         dialog = Gtk.FileDialog()
@@ -192,17 +214,16 @@ class AppWindow (Gtk.ApplicationWindow):
         if item.model.get_n_items():
             return
         
-        from building_division_dialog import BuildingDivisionDialog
-        dlg = BuildingDivisionDialog()      
-        dlg.input(item.obj)
+        self.division_dlg.input(item.obj)
         
         def do_close_request(win):
-            self.panel.add_sub(item,dlg.output())
+            self.panel.add_sub(item,self.division_dlg.output())
 
-        dlg.connect('close_request', do_close_request)
-        dlg.set_modal(True)  # 设置为模态窗口
-        dlg.set_transient_for(self)  # 设置父窗口
-        dlg.present()
+        self.division_dlg.disconnect_by_func(do_close_request)
+        self.division_dlg.connect('close_request', do_close_request)
+        self.division_dlg.set_modal(True)  # 设置为模态窗口
+        self.division_dlg.set_transient_for(self)  # 设置父窗口
+        self.division_dlg.present()
 
     def building_reconstruct(self,sender, *args):
         i = self.panel.selection_model.get_selected()

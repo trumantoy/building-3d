@@ -33,42 +33,37 @@ class BuildingDivisionDialog (Gtk.Window):
         
         bar.set_show_title_buttons(False)
         self.set_titlebar(bar)
+        
+        self.working_dir = 'algorithm'
+        self.input_file =  os.path.join(self.working_dir,'input','to_divide.npy')
+        self.output_dir = os.path.join(self.working_dir,'output','divided')
+        self.process = sp.Popen([f'{self.working_dir}/divide.exe'],stdout=sp.PIPE,encoding='utf-8',text=True,cwd=self.working_dir)
     
     def input(self, obj):
         self.result = []
         self.src_obj = obj
         pc = obj.geometry.positions.data + obj.local.position
 
-
         self.progress.set_fraction(0)
 
-        # working_directory = '../pc_seg'
-        working_directory = 'algorithm'
+        if os.path.exists(self.input_file): os.remove(self.input_file)
+        shutil.rmtree(self.output_dir,ignore_errors=True)
+        os.makedirs(self.output_dir,exist_ok=True)
 
-        input_file =  os.path.join(working_directory,'input','to_divide.npy')
-        output_dir = os.path.join(working_directory,'output','divided')
-        
-        if os.path.exists(input_file): os.remove(input_file)
-        shutil.rmtree(output_dir,ignore_errors=True)
-        os.makedirs(output_dir,exist_ok=True)
+        np.save(self.input_file, pc)
 
-        np.save(input_file, pc)
-
-        # pyinstaller.exe divide.py --contents-directory _divide; mkdir dist/divide/input; cp -r weights dist/divide/input
-        p = sp.Popen([f'{working_directory}/divide.exe'],stdout=sp.PIPE,encoding='utf-8',text=True,cwd=working_directory)
-
-        self.working_directory = working_directory
-
-        self.stdout_thread = threading.Thread(target=self.divide,args=[p])
+        self.stdout_thread = threading.Thread(target=self.divide,args=[])
         self.stdout_thread.start()
 
+    def divide(self):
+        self.process.stdin.write(f'\n')
+        self.process.stdin.flush()
 
-    def divide(self,p : sp.Popen):
         count = None
         j = 1
 
-        while p.poll() is None:
-            line = p.stdout.readline().strip()
+        while self.poll() is None:
+            line = self.process.stdout.readline().strip()
             if not line: continue
             if not count:
                 count = int(line)
@@ -83,6 +78,8 @@ class BuildingDivisionDialog (Gtk.Window):
             self.result.append([positions,file_path])
 
         GLib.idle_add(self.close)
+
+        self.process = sp.Popen([f'{self.working_dir}/divide.exe'],stdout=sp.PIPE,encoding='utf-8',text=True,cwd=self.working_dir)
 
     def output(self):
         self.src_obj.material.opacity = 0
