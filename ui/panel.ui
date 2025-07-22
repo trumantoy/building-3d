@@ -1,5 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <interface>
+    <menu id="popover_menu_add">
+        <item>
+        <attribute name="label" translatable="yes">添加点云</attribute>
+        <attribute name="action">win.file_add</attribute>
+        </item>
+    </menu>
+
     <menu id="popover_menu">
         <section>
             <item>

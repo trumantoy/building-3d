@@ -10,9 +10,7 @@ class Panel (Gtk.Paned):
     __gtype_name__ = "Panel"
     provider = Gtk.CssProvider.new()
 
-    geoms = Gtk.Template.Child('geoms')
-    roofcolor = Gtk.Template.Child('roofcolor')
-    roomcolor = Gtk.Template.Child('roomcolor')
+    listview = Gtk.Template.Child('geoms')
     expander_position = Gtk.Template.Child('position')
     expander_pointcloud = Gtk.Template.Child('pointcloud')
     expander_mesh = Gtk.Template.Child('mesh')
@@ -20,7 +18,8 @@ class Panel (Gtk.Paned):
     spin_x = Gtk.Template.Child('x')
     spin_y = Gtk.Template.Child('y')
     spin_z = Gtk.Template.Child('z')
-
+        
+    menu_add = Gtk.Template.Child('popover_menu_add')
     menu = Gtk.Template.Child('popover_menu')
 
     def __init__(self):
@@ -30,41 +29,87 @@ class Panel (Gtk.Paned):
         self.tree_model = Gtk.TreeListModel.new(self.model,passthrough=False,autoexpand=False,create_func=lambda item: item.model)
 
         self.selection_model = Gtk.SingleSelection.new(self.tree_model)
-        self.selection_model.connect("selection-changed", self.item_selection_changed)
+        self.selection_model.set_autoselect(False)
+        self.selection_model.set_can_unselect(True)
+        self.cur_item_index = Gtk.INVALID_LIST_POSITION
 
         factory = Gtk.SignalListItemFactory()
-
         factory.connect("setup", self.setup_listitem)
         factory.connect("bind", self.bind_listitem)
+                
+        self.listview.set_model(self.selection_model)
+        self.listview.set_factory(factory)
         
-        self.geoms.set_model(self.selection_model)
-        self.geoms.set_factory(factory)
-        
-        self.roofcolor.set_dialog(Gtk.ColorDialog())
-        self.roomcolor.set_dialog(Gtk.ColorDialog())
+        # 创建右键点击手势
+        left_click_gesture = Gtk.GestureClick()
+        left_click_gesture.set_button(1)  # 3 代表鼠标右键
+        left_click_gesture.connect("pressed", self.listview_left_clicked)
+        self.listview.add_controller(left_click_gesture)
 
         # 创建右键点击手势
         right_click_gesture = Gtk.GestureClick()
         right_click_gesture.set_button(3)  # 3 代表鼠标右键
-        right_click_gesture.connect("pressed", self.listview_right_clicked, self.geoms)
-        self.geoms.add_controller(right_click_gesture)
+        right_click_gesture.connect("pressed", self.listview_right_clicked)
+        self.listview.add_controller(right_click_gesture)
 
-    def listview_right_clicked(self, gesture, n_press, x, y, listview):
-        i = listview.get_model().get_selected()
+    def listview_left_clicked(self, gesture, n_press, x, y):
+        if self.cur_item_index == Gtk.INVALID_LIST_POSITION:
+            self.selection_model.unselect_all()
+            
+            if 'last_item' in vars(self):
+                self.last_item.obj.set_bounding_box_visible(False)
+            return
         
+        item = self.selection_model.get_item(self.cur_item_index).get_item()
+        self.spin_x.set_value(item.obj.local.x)
+        self.spin_y.set_value(item.obj.local.y)
+        self.spin_z.set_value(item.obj.local.z)
+
+        if type(item.obj) == PointCloud:
+            self.expander_position.set_visible(True)
+            self.expander_pointcloud.set_visible(True)
+            self.expander_mesh.set_visible(False)
+            item.obj.set_bounding_box_visible(True)
+        elif type(item.obj) == Building:
+            self.expander_position.set_visible(True)
+            self.expander_pointcloud.set_visible(False)
+            self.expander_mesh.set_visible(True)
+            del self.last_item 
+        else:
+            self.expander_position.set_visible(False)
+            self.expander_pointcloud.set_visible(False)
+            self.expander_mesh.set_visible(False)
+            del self.last_item
+
+        self.last_item = item
+
+    def listview_right_clicked(self, gesture, n_press, x, y):
         popover = Gtk.PopoverMenu()
-        popover.set_menu_model(self.menu)
-        popover.set_parent(listview)
+        popover.set_parent(gesture.get_widget())
+
+        if self.cur_item_index == Gtk.INVALID_LIST_POSITION:
+            popover.set_menu_model(self.menu_add)
+            self.selection_model.unselect_all()
+        else:
+            popover.set_menu_model(self.menu)
+
         rect = Gdk.Rectangle()
         rect.x = x
         rect.y = y
         popover.set_pointing_to(rect)
+
+        self.selection_model.set_can_unselect(False)
+        i = self.cur_item_index
+
         popover.popup()
+
+        self.selection_model.set_selected(i)
+        self.selection_model.set_can_unselect(True)
 
     def set_viewbar(self,viewbar):
         self.viewbar = viewbar
 
-    def setup_listitem(self, factory, listviewitem):
+    def setup_listitem(self, factory, listitem):
         # 创建一个水平排列的容器
         box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
         
@@ -79,7 +124,7 @@ class Panel (Gtk.Paned):
         focus = Gtk.Button()
         focus.set_icon_name("find-location-symbolic")
         # focus.set_has_frame(False)
-        focus.connect("clicked", self.focus_clicked, listviewitem)
+        focus.connect("clicked", self.focus_clicked, listitem)
         name_box.append(focus)
 
         # 将图标和标签添加到容器中
@@ -97,11 +142,24 @@ class Panel (Gtk.Paned):
             """
         self.provider.load_from_data(css)
         icon.get_style_context().add_class("borderless-toggle-button")
-        icon.connect("toggled", self.item_visible_toggled, listviewitem)
+        icon.connect("toggled", self.item_visible_toggled, listitem)
         box.append(icon)
 
         # 设置列表项的显示内容
-        listviewitem.set_child(box)
+        listitem.set_child(box)
+
+        # 添加鼠标进入/离开控制器
+        motion_controller = Gtk.EventControllerMotion()
+        motion_controller.connect("enter", self.listitem_enter,listitem)  # 鼠标进入事件
+        motion_controller.connect("leave", self.listitem_leave)  # 鼠标离开事件
+        box.add_controller(motion_controller)
+
+
+    def listitem_enter(self, controller, x, y,listitem):
+        self.cur_item_index = listitem.get_position()
+
+    def listitem_leave(self, controller):
+        self.cur_item_index = Gtk.INVALID_LIST_POSITION
 
     def bind_listitem(self, factory, list_item):
         tree_row = list_item.get_item()
@@ -128,7 +186,7 @@ class Panel (Gtk.Paned):
 
         if self.model.get_n_items() == 1:
             self.selection_model.set_selected(0)
-            self.item_selection_changed(self.selection_model, 0, 1)
+
         return item
     
     def add_sub(self,item,objs):
@@ -162,35 +220,6 @@ class Panel (Gtk.Paned):
         item = tree_item.get_item()
         camera = self.viewbar.get_view_camera()
         camera.show_object(item.obj)
-
-    def item_selection_changed(self, selection_model, i, n_items):
-        i = selection_model.get_selected()
-        item = selection_model.get_item(i).get_item()
-        print(item.obj,type(item.obj) == PointCloud)
-        self.spin_x.set_value(item.obj.local.x)
-        self.spin_y.set_value(item.obj.local.y)
-        self.spin_z.set_value(item.obj.local.z)
-
-        if type(item.obj) == PointCloud:
-            self.expander_position.set_visible(True)
-            self.expander_pointcloud.set_visible(True)
-            self.expander_mesh.set_visible(False)
-            item.obj.set_bounding_box_visible(True)
-        elif type(item.obj) == Building:
-            self.expander_position.set_visible(True)
-            self.expander_pointcloud.set_visible(False)
-            self.expander_mesh.set_visible(True)
-            del self.last_item 
-        else:
-            self.expander_position.set_visible(False)
-            self.expander_pointcloud.set_visible(False)
-            self.expander_mesh.set_visible(False)
-            del self.last_item 
-
-        if 'last_item' in vars(self):
-            self.last_item.obj.set_bounding_box_visible(False)
-
-        self.last_item = item
 
     @Gtk.Template.Callback()
     def assessment_value_changed(self, spin_button):
