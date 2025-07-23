@@ -8,8 +8,12 @@ import numpy as np
 import pygfx as gfx
 from pathlib import Path
 import os
+import sys
 import shutil
+import io
 import trimesh
+import zipfile
+import tempfile
 
 from simtoy import *
 from panel import *
@@ -147,10 +151,19 @@ class AppWindow (Gtk.ApplicationWindow):
         dialog = Gtk.FileDialog()
         dialog.set_modal(True)
 
-        def select_folder(dialog, result): 
+        filter_text = Gtk.FileFilter()
+        filter_text.set_name("ZIP 文件")
+        filter_text.add_pattern("*.zip")
+        
+        filters = Gio.ListStore.new(Gtk.FileFilter)
+        filters.append(filter_text)
+        dialog.set_filters(filters)
+        dialog.set_default_filter(filter_text)
+
+        def open_file(dialog, result): 
             file_path = None
             try:
-                file = dialog.select_folder_finish(result)
+                file = dialog.open_finish(result)
                 file_path = file.get_path()
             except:
                 return
@@ -221,14 +234,15 @@ class AppWindow (Gtk.ApplicationWindow):
                 obj.add(*sub_objs)
                 self.panel.add_sub(item,sub_objs)
 
-        dialog.select_folder(None, None, select_folder) 
+        dialog.open(None, None, open_file) 
 
     def file_export(self,sender, *args):
         dialog = Gtk.FileDialog()
         dialog.set_modal(True)
 
         filter_text = Gtk.FileFilter()
-        filter_text.set_name("点云")
+        filter_text.set_name("ZIP 文件")
+        filter_text.add_pattern("*.zip")
         
         filters = Gio.ListStore.new(Gtk.FileFilter)
         filters.append(filter_text)
@@ -240,40 +254,41 @@ class AppWindow (Gtk.ApplicationWindow):
 
             try:
                 file = dialog.save_finish(result)
-                file_path = file.get_path()
+                file_path = file.get_path()       
+                file_name = file.get_basename()         
             except:
                 return
             
-            shutil.rmtree(file_path, ignore_errors=True)
-            os.makedirs(file_path, exist_ok=True)
-           
+            with zipfile.ZipFile(file_path,'w') as zf:
+                for i, item in enumerate(self.panel.model):
+                    print(item.obj.name)
+                    points = item.obj.geometry.positions.data + item.obj.local.position
+                    colors = item.obj.geometry.colors.data
+                    zf.writestr(item.obj.name, points.tobytes())
+                    zf.writestr(item.obj.name + '.colors', colors.tobytes())
+            
+                    for j, sub_item in enumerate(item.model):
+                        print(sub_item.obj.name)
+                        if type(sub_item.obj) == PointCloud:
+                            points = sub_item.obj.geometry.positions.data + sub_item.obj.local.position
+                            colors = sub_item.obj.geometry.colors.data
+                            zf.writestr(os.path.join(item.obj.name, sub_item.obj.name), points)
+                            zf.writestr(os.path.join(item.obj.name, sub_item.obj.name + '.colors'), colors)
+                            continue
 
-            for i, item in enumerate(self.panel.model):
-                print(item.obj.name)
-                points = item.obj.geometry.positions.data + item.obj.local.position
-                np.savetxt(os.path.join(file_path, item.obj.name), points)
-                np.savetxt(os.path.join(file_path, item.obj.name+'.colors'), item.obj.geometry.colors.data)
+                        if type(sub_item.obj) == Building:
+                            positions = sub_item.obj.geometry.positions.data + sub_item.obj.local.position
+                            faces = sub_item.obj.geometry.indices.data if sub_item.obj.geometry.indices is not None else None
+                            tm = trimesh.Trimesh(vertices=positions, faces=faces)
+                            bbo = io.BytesIO()
+                            tm.export(bbo,file_type='obj')
+                            zf.writestr(os.path.join(item.obj.name, sub_item.obj.name), bbo.getvalue())
 
-                children_dir = os.path.join(file_path, f'_{item.obj.name}')
-                os.makedirs(children_dir, exist_ok=True)
-        
-                for j, sub_item in enumerate(item.model):
-                    print(sub_item.obj.name)
-                    if type(sub_item.obj) == PointCloud:
-                        points = sub_item.obj.geometry.positions.data + sub_item.obj.local.position
-                        np.savetxt(os.path.join(children_dir, sub_item.obj.name), points)
-                        np.savetxt(os.path.join(children_dir, sub_item.obj.name+'.colors'), sub_item.obj.geometry.colors.data)
-                        continue
+                            if sub_item.obj.roof_mesh_content:
+                                zf.writestr(os.path.join(item.obj.name, sub_item.obj.name + '.roof'), sub_item.obj.roof_mesh_content.getvalue())
+                            continue
 
-                    if type(sub_item.obj) == Building:
-                        positions = sub_item.obj.geometry.positions.data + sub_item.obj.local.position
-                        faces = sub_item.obj.geometry.indices.data if sub_item.obj.geometry.indices is not None else None
-                        tm = trimesh.Trimesh(vertices=positions, faces=faces)
-                        tm.export(os.path.join(children_dir, sub_item.obj.name))
-                        if sub_item.obj.roof_mesh_content:            
-                            with open(os.path.join(children_dir, sub_item.obj.name+'.roof.obj'),'w') as f:
-                                f.write(sub_item.obj.roof_mesh_content.getvalue())
-                        continue
+                
         dialog.save(None, None, save_file)
 
 
