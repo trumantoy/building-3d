@@ -168,40 +168,55 @@ class AppWindow (Gtk.ApplicationWindow):
             except:
                 return
 
-            # 使用 os.walk 遍历文件夹
-            for e in [e for e in os.scandir(file_path) if e.is_file()]:
-                print(e.name)
-                if not e.path.endswith('.las'):
-                    continue
+            with zipfile.ZipFile(file_path, 'r') as zf:
+                for archive_path in zf.namelist():
+                    dir_name = os.path.dirname(archive_path)
+                    file_name = os.path.basename(archive_path)
+                                      
+                    if archive_path.endswith('.las'):
+                        item = self.panel.get(file_name)
+                        if item: continue
 
-                points = np.loadtxt(e.path,dtype=np.float32,usecols=(0, 1, 2))
-                colors = np.loadtxt(e.path+'.colors',dtype=np.float32,usecols=(0, 1, 2))
-                
-                geometry = gfx.Geometry(positions=points, colors=colors)
-                material = gfx.PointsMaterial(color_mode="vertex", size=1)
-                obj = PointCloud(geometry,material)
-                obj.name = e.name
+                        # 读取点数据
+                        points_data = zf.read(archive_path)
+                        points = np.frombuffer(points_data, dtype=np.float64).reshape(-1, 3)
 
-                self.editor.add(obj)
-                item = self.panel.add(obj)
+                        # 读取颜色数据
+                        colors_data = zf.read(archive_path + '.colors')
+                        colors = np.frombuffer(colors_data, dtype=np.float32).reshape(-1, 3)
 
-                children_dir = os.path.join(file_path,f'_{e.name}')
-                sub_objs = []
-                for e in [e for e in os.scandir(children_dir) if e.is_file]:
-                    print(e.name)
-                    if e.path.endswith('.npy'):
-                        sub_points = np.loadtxt(e.path,dtype=np.float32,usecols=[0,1,2])
-                        sub_colors = np.loadtxt(e.path+'.colors',dtype=np.float32,usecols=[0,1,2])
-                        geometry = gfx.Geometry(positions=sub_points, colors=sub_colors)
+                        geometry = gfx.Geometry(positions=points.astype(np.float32), colors=colors)
                         material = gfx.PointsMaterial(color_mode="vertex", size=1)
-                        sub_obj = PointCloud(geometry,material)
-                        sub_obj.name = e.name
-                        sub_obj.label.visible = False
-                        sub_objs.append(sub_obj)
-                        continue
+                        obj = PointCloud(geometry, material)
+                        obj.name = file_name
+                        self.editor.add(obj)
+                        item = self.panel.add(obj)
+                    elif archive_path.endswith('.npy'):
+                        item = self.panel.get(dir_name)
 
-                    if e.path.endswith('.obj') and not e.path.endswith('.roof.obj'):                        
-                        mesh = gfx.load_mesh(e.path)[0]
+                        if not item: continue
+                        # 读取点数据
+                        points_data = zf.read(archive_path)
+                        points = np.frombuffer(points_data, dtype=np.float64).reshape(-1, 3)
+
+                        # 读取颜色数据
+                        colors_data = zf.read(archive_path + '.colors')
+                        colors = np.frombuffer(colors_data, dtype=np.float32).reshape(-1, 3)
+
+                        geometry = gfx.Geometry(positions=points.astype(np.float32), colors=colors)
+                        material = gfx.PointsMaterial(color_mode="vertex", size=1)
+                        sub_obj = PointCloud(geometry, material)
+                        sub_obj.name = file_name
+        
+                        item.obj.add(sub_obj)
+                        self.panel.add_sub(item,[sub_obj])
+                    elif archive_path.endswith('.obj'):
+                        item = self.panel.get(dir_name)
+                        if not item: continue
+
+                        bbo = io.BytesIO(zf.read(archive_path))
+                        from pygfx.utils.load import meshes_from_trimesh
+                        mesh = meshes_from_trimesh(trimesh.load(bbo,file_type='obj'), apply_transforms=True)[0]
                         pc = mesh.geometry.positions.data
                         x, y, z = pc[:, 0], pc[:, 1], pc[:, 2]
                         offset = [(x.max()-x.min())/2,(y.max()-y.min())/2,0]
@@ -223,16 +238,18 @@ class AppWindow (Gtk.ApplicationWindow):
                         building.geometry = mesh.geometry
                         building.material = mesh.material
                         building.local.position = origin + offset
-                        building.name = e.name
+                        building.name = file_name
 
-                        if os.path.exists(e.path+'.roof.obj'):         
-                            with open(e.path+ '.roof.obj', 'r') as f:
-                                building.roof_mesh_content = f.read()
-                        sub_objs.append(building)
+                        if archive_path + '.roof' in zf.namelist():         
+                            building.roof_mesh_content = zf.read(archive_path + '.roof')
+
+                        item.obj.add(building)
+                        self.panel.add_sub(item,[building])
+                    else:
                         continue
-                
-                obj.add(*sub_objs)
-                self.panel.add_sub(item,sub_objs)
+
+                    
+
 
         dialog.open(None, None, open_file) 
 

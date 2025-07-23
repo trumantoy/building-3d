@@ -203,7 +203,13 @@ class Panel (Gtk.Paned):
             if item.obj == obj:
                 self.model.remove(i)
                 break
-        
+
+    def get(self, name):
+        for item in self.model:
+            if item.obj.name == name:
+                return item
+        return None
+
     def item_visible_toggled(self,sender,list_item):
         tree_row = list_item.get_item()
         item = tree_row.get_item()
