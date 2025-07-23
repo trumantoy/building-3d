@@ -272,8 +272,8 @@ class AppWindow (Gtk.ApplicationWindow):
                         if type(sub_item.obj) == PointCloud:
                             points = sub_item.obj.geometry.positions.data + sub_item.obj.local.position
                             colors = sub_item.obj.geometry.colors.data
-                            zf.writestr(os.path.join(item.obj.name, sub_item.obj.name), points)
-                            zf.writestr(os.path.join(item.obj.name, sub_item.obj.name + '.colors'), colors)
+                            zf.writestr(os.path.join(item.obj.name, sub_item.obj.name), points.tobytes())
+                            zf.writestr(os.path.join(item.obj.name, sub_item.obj.name + '.colors'), colors.tobytes())
                             continue
 
                         if type(sub_item.obj) == Building:
