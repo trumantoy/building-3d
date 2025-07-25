@@ -168,88 +168,12 @@ class AppWindow (Gtk.ApplicationWindow):
             except:
                 return
 
-            with zipfile.ZipFile(file_path, 'r') as zf:
-                for archive_path in zf.namelist():
-                    dir_name = os.path.dirname(archive_path)
-                    file_name = os.path.basename(archive_path)
-                                      
-                    if archive_path.endswith('.las'):
-                        item = self.panel.get(file_name)
-                        if item: continue
-
-                        # 读取点数据
-                        points_data = zf.read(archive_path)
-                        points = np.frombuffer(points_data, dtype=np.float64).reshape(-1, 3)
-
-                        # 读取颜色数据
-                        colors_data = zf.read(archive_path + '.colors')
-                        colors = np.frombuffer(colors_data, dtype=np.float32).reshape(-1, 3)
-
-                        geometry = gfx.Geometry(positions=points.astype(np.float32), colors=colors)
-                        material = gfx.PointsMaterial(color_mode="vertex", size=1)
-                        obj = PointCloud(geometry, material)
-                        obj.name = file_name
-                        self.editor.add(obj)
-                        item = self.panel.add(obj)
-                    elif archive_path.endswith('.npy'):
-                        item = self.panel.get(dir_name)
-
-                        if not item: continue
-                        # 读取点数据
-                        points_data = zf.read(archive_path)
-                        points = np.frombuffer(points_data, dtype=np.float64).reshape(-1, 3)
-
-                        # 读取颜色数据
-                        colors_data = zf.read(archive_path + '.colors')
-                        colors = np.frombuffer(colors_data, dtype=np.float32).reshape(-1, 3)
-
-                        geometry = gfx.Geometry(positions=points.astype(np.float32), colors=colors)
-                        material = gfx.PointsMaterial(color_mode="vertex", size=1)
-                        sub_obj = PointCloud(geometry, material)
-                        sub_obj.name = file_name
-        
-                        item.obj.add(sub_obj)
-                        self.panel.add_sub(item,[sub_obj])
-                    elif archive_path.endswith('.obj'):
-                        item = self.panel.get(dir_name)
-                        if not item: continue
-
-                        bbo = io.BytesIO(zf.read(archive_path))
-                        from pygfx.utils.load import meshes_from_trimesh
-                        mesh = meshes_from_trimesh(trimesh.load(bbo,file_type='obj'), apply_transforms=True)[0]
-                        pc = mesh.geometry.positions.data
-                        x, y, z = pc[:, 0], pc[:, 1], pc[:, 2]
-                        offset = [(x.max()-x.min())/2,(y.max()-y.min())/2,0]
-                        origin = np.array([np.min(x),np.min(y),0])
-                        x = x - np.min(x)
-                        y = y - np.min(y)
-                        z = z
-                        pc = np.column_stack([x,y,z]) - [(x.max()-x.min())/2,(y.max()-y.min())/2,0]
-                        mesh.geometry.positions.data[:] = pc.astype(np.float32)
-
-                        mesh.material.side = gfx.VisibleSide.both
-                        mesh.material.color = (0.8, 0.8, 0.8)  # 设置材质颜色为白色
-                        mesh.material.shininess = 0  # 降低高光强度
-                        mesh.material.specular = (0.0, 0.0, 0.0, 1.0)  # 降低高光色
-                        mesh.material.emissive = (0.8, 0.8, 0.8)  # 设置微弱自发光
-                        mesh.material.flat_shading = True  # 启用平面着色
-
-                        building = Building()
-                        building.geometry = mesh.geometry
-                        building.material = mesh.material
-                        building.local.position = origin + offset
-                        building.name = file_name
-
-                        if archive_path + '.roof' in zf.namelist():         
-                            building.roof_mesh_content = zf.read(archive_path + '.roof')
-
-                        item.obj.add(building)
-                        self.panel.add_sub(item,[building])
-                    else:
-                        continue
-
-                    
-
+            from import_dialog import ImportDialog
+            import_dlg = ImportDialog()
+            import_dlg.set_transient_for(self)  # 设置父窗口
+            import_dlg.set_modal(True)
+            import_dlg.input(file_path,self.editor,self.panel)
+            import_dlg.present()
 
         dialog.open(None, None, open_file) 
 
@@ -276,35 +200,12 @@ class AppWindow (Gtk.ApplicationWindow):
             except:
                 return
             
-            with zipfile.ZipFile(file_path,'w') as zf:
-                for i, item in enumerate(self.panel.model):
-                    print(item.obj.name)
-                    points = item.obj.geometry.positions.data + item.obj.local.position
-                    colors = item.obj.geometry.colors.data
-                    zf.writestr(item.obj.name, points.tobytes())
-                    zf.writestr(item.obj.name + '.colors', colors.tobytes())
-            
-                    for j, sub_item in enumerate(item.model):
-                        print(sub_item.obj.name)
-                        if type(sub_item.obj) == PointCloud:
-                            points = sub_item.obj.geometry.positions.data + sub_item.obj.local.position
-                            colors = sub_item.obj.geometry.colors.data
-                            zf.writestr(os.path.join(item.obj.name, sub_item.obj.name), points.tobytes())
-                            zf.writestr(os.path.join(item.obj.name, sub_item.obj.name + '.colors'), colors.tobytes())
-                            continue
-
-                        if type(sub_item.obj) == Building:
-                            positions = sub_item.obj.geometry.positions.data + sub_item.obj.local.position
-                            faces = sub_item.obj.geometry.indices.data if sub_item.obj.geometry.indices is not None else None
-                            tm = trimesh.Trimesh(vertices=positions, faces=faces)
-                            bbo = io.BytesIO()
-                            tm.export(bbo,file_type='obj')
-                            zf.writestr(os.path.join(item.obj.name, sub_item.obj.name), bbo.getvalue())
-
-                            if sub_item.obj.roof_mesh_content:
-                                zf.writestr(os.path.join(item.obj.name, sub_item.obj.name + '.roof'), sub_item.obj.roof_mesh_content.getvalue())
-                            continue
-
+            from export_dialog import ExportDialog
+            export_dlg = ExportDialog()
+            export_dlg.set_transient_for(self)  # 设置父窗口
+            export_dlg.set_modal(True)
+            export_dlg.input(file_path,self.editor,self.panel)
+            export_dlg.present()
                 
         dialog.save(None, None, save_file)
 

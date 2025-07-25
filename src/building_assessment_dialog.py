@@ -71,8 +71,8 @@ class BuildingAssessmentDialog (Gtk.Window):
             elif type(sub_obj) == Building:
                 name = os.path.splitext(sub_obj.name)[0]
                 if sub_obj.roof_mesh_content:            
-                    with open(os.path.join(mesh_input_dir, f'{name}.obj'), 'w') as f:
-                        f.write(sub_obj.roof_mesh_content.getvalue())
+                    with open(os.path.join(mesh_input_dir, f'{name}.obj'), 'wb') as f:
+                        f.write(sub_obj.roof_mesh_content)
                     
         # pyinstaller.exe assess.py
         

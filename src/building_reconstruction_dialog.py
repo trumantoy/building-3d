@@ -124,9 +124,9 @@ class BuildingReconstructionDialog (Gtk.Window):
                 building.roof_mesh_content = None
                 continue
 
-            with open(roof_file_path, 'r', encoding='utf-8') as f:
+            with open(roof_file_path, 'rb') as f:
                 roof_content = f.read()
-                building.roof_mesh_content = io.StringIO(roof_content)
+                building.roof_mesh_content = roof_content
             
             self.src_obj.add(building)
             self.objs.append(building)
