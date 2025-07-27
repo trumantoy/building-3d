@@ -100,6 +100,10 @@ class BuildingDivisionDialog (Gtk.Window):
         import colorsys  # 导入 colorsys 模块用于 HSV 到 RGB 的转换
         objs = []
         for pc,file_path in self.result:
+            x, y, z = pc[:, 0], pc[:, 1], pc[:, 2]
+            offset = [(x.max()-x.min())/2,(y.max()-y.min())/2,0]
+            origin = np.array([np.min(x),np.min(y),0])
+        
             z = pc[:,2]
             # 归一化 z 坐标
             z_normalized = (z - z_min) / (z_max - z_min) if z_max != z_min else 0.5
@@ -116,6 +120,7 @@ class BuildingDivisionDialog (Gtk.Window):
             points = PointCloud(geometry,material)
             points.name = os.path.basename(file_path)
             points.label.visible = False
+            # points.local.position = origin + offset - self.src_obj.local.position
             objs.append(points)
 
         self.src_obj.add(*objs)

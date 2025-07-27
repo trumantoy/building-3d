@@ -32,7 +32,7 @@ class Panel (Gtk.Paned):
         self.selection_model.set_autoselect(False)
         self.selection_model.set_can_unselect(True)
         self.cur_item_index = Gtk.INVALID_LIST_POSITION
-        self.selected_obj = None
+        self.selected_item = None
 
         factory = Gtk.SignalListItemFactory()
         factory.connect("setup", self.setup_listitem)
@@ -54,17 +54,18 @@ class Panel (Gtk.Paned):
         self.listview.add_controller(right_click_gesture)
 
     def listview_left_clicked(self, gesture, n_press, x, y):
+        if self.selected_item:
+            self.selected_item.obj.set_bounding_box_visible(False)
+
         if self.cur_item_index == Gtk.INVALID_LIST_POSITION:
             self.selection_model.unselect_all()
-            
-            if 'last_item' in vars(self):
-                self.last_item.obj.set_bounding_box_visible(False)
+            self.selected_item = None
             return
         
         item = self.selection_model.get_item(self.cur_item_index).get_item()
-        self.spin_x.set_value(item.obj.local.x)
-        self.spin_y.set_value(item.obj.local.y)
-        self.spin_z.set_value(item.obj.local.z)
+        # self.spin_x.set_value(item.obj.local.x)
+        # self.spin_y.set_value(item.obj.local.y)
+        # self.spin_z.set_value(item.obj.local.z)
 
         if type(item.obj) == PointCloud:
             self.expander_position.set_visible(True)
@@ -75,14 +76,14 @@ class Panel (Gtk.Paned):
             self.expander_position.set_visible(True)
             self.expander_pointcloud.set_visible(False)
             self.expander_mesh.set_visible(True)
-            del self.last_item 
+            item = None
         else:
             self.expander_position.set_visible(False)
             self.expander_pointcloud.set_visible(False)
             self.expander_mesh.set_visible(False)
-            del self.last_item
+            item = None
 
-        self.last_item = item
+        self.selected_item = item
 
     def listview_right_clicked(self, gesture, n_press, x, y):
         popover = Gtk.PopoverMenu()
@@ -169,45 +170,41 @@ class Panel (Gtk.Paned):
         expander = name_box.get_first_child()
         label = expander.get_next_sibling()
 
-        tree_item = tree_row.get_item()
+        item = tree_row.get_item()
+        item.row = tree_row
+        item.widget = box
 
         expander.set_list_row(tree_row)
-        label.set_label(tree_item.obj.name)
-        tree_item.widget = list_item
+        label.set_label(item.obj.name)
 
-        if tree_item.model.get_n_items():
+        if item.model.get_n_items():
             expander.set_hide_expander(False)
         else:
             expander.set_hide_expander(True)
 
-    def pick(self,event):
-        info = event.pick_info
-        print(info)
-
-        if self.selected_obj:
-            self.selected_obj.set_bounding_box_visible(False)
-
-        self.selected_obj = info["world_object"]
-        self.selected_obj.set_bounding_box_visible(True)
-
     def add(self, obj : WorldObject):
         item = GObject.Object()
         item.obj = obj
+        item.parent = None
         item.model = Gio.ListStore(item_type=GObject.Object)
         self.model.append(item)
-
         obj.material.pick_write = True
-        # obj.add_event_handler(self.pick,'pointer_down')
+
         return item
     
     def add_sub(self,item,objs):
+        start = item.model.get_n_items()
         for obj in objs:
+            obj.material.pick_write = True
             sub_item = GObject.Object()
             sub_item.obj = obj
+            sub_item.parent = item
             sub_item.model = Gio.ListStore(item_type=GObject.Object)
             item.model.append(sub_item)
-
-        self.model.items_changed(self.model.get_n_items() - 1,1,1)
+        
+        b,i = self.model.find(item)
+        self.model.items_changed(i,1,1)
+        item.model.items_changed(start,0,item.model.get_n_items() - start)
         
     def remove(self, obj):
         for i,item in enumerate(self.model):
@@ -219,6 +216,11 @@ class Panel (Gtk.Paned):
         for item in self.model:
             if item.obj.name == name:
                 return item
+            
+            for sub_item in item.model:
+                if sub_item.obj.name == name:
+                    return sub_item
+
         return None
 
     def item_visible_toggled(self,sender,list_item):

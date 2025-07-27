@@ -131,15 +131,25 @@ class AppWindow (Gtk.ApplicationWindow):
     def pick(self,x,y):
         info = self.renderer.get_pick_info([x,y])
         
-        if self.picked_obj:
-            self.picked_obj.set_bounding_box_visible(False)
+        if self.panel.selected_item:
+            self.panel.selected_item.obj.set_bounding_box_visible(False)
 
         obj = info['world_object']
+        item = None
+
         if obj:
             obj.set_bounding_box_visible(True)
+            item = self.panel.get(obj.name)
+            if item.parent:
+                item.parent.row.set_expanded(True)
+            
+            i = item.row.get_position()
+            self.panel.listview.scroll_to(i, Gtk.ListScrollFlags.SELECT)
+        else:
+            self.panel.selection_model.unselect_all()
+        self.panel.selected_item = item
         
-        self.picked_obj = obj
-
+        
     def draw(self,receiver, cr, area_w, area_h, editor : Editor):
         width,height = self.canvas.get_physical_size()
 
@@ -227,7 +237,6 @@ class AppWindow (Gtk.ApplicationWindow):
             export_dlg.present()
                 
         dialog.save(None, None, save_file)
-
 
     def file_close(self,sender, *args):
         for i,item in enumerate(self.panel.model):
