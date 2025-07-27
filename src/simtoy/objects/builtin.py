@@ -177,7 +177,14 @@ class PointCloud(gfx.Points):
         
         if self.geometry:
             aabb = self.get_bounding_box()
+            pc = self.geometry.positions.data
+            x, y, z = pc[:, 0], pc[:, 1], pc[:, 2]
+            aabb = [[x.min(),y.min(),z.min()],[x.max(),y.max(),z.max()]]            
+            offset = [(x.max()-x.min())/2,(y.max()-y.min())/2,0]
+            origin = np.array([np.min(x),np.min(y),0])
+
             self.bounding_box.geometry = gfx.box_geometry(aabb[1][0] - aabb[0][0],aabb[1][1] - aabb[0][1],aabb[1][2] - aabb[0][2])
+            self.bounding_box.local.position = origin + offset
             self.bounding_box.local.z = (aabb[1][2] - aabb[0][2])  / 2
 
     def set_bounding_box_visible(self, visible : bool):

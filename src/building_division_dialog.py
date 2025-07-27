@@ -55,7 +55,7 @@ class BuildingDivisionDialog (Gtk.Window):
 
         os.makedirs(self.input_dir,exist_ok=True)
         os.makedirs(self.output_dir,exist_ok=True)
-        points = obj.geometry.positions.data + obj.local.position
+        points = obj.geometry.positions.data
         np.save(self.input_file, points)
 
         self.stdout_thread = threading.Thread(target=self.divide,args=[])
@@ -103,8 +103,8 @@ class BuildingDivisionDialog (Gtk.Window):
             x, y, z = pc[:, 0], pc[:, 1], pc[:, 2]
             offset = [(x.max()-x.min())/2,(y.max()-y.min())/2,0]
             origin = np.array([np.min(x),np.min(y),0])
+            pc = pc - origin - offset # 重置坐标系
         
-            z = pc[:,2]
             # 归一化 z 坐标
             z_normalized = (z - z_min) / (z_max - z_min) if z_max != z_min else 0.5
             # 绿色色相为 120/360，红色色相为 0，根据 z 坐标线性插值
@@ -114,14 +114,13 @@ class BuildingDivisionDialog (Gtk.Window):
             value = 1.0
             # 转换为 RGB 颜色
             colors = np.array([colorsys.hsv_to_rgb(h, saturation, value) for h in hsv_hues], dtype=np.float32)
-
-            geometry = gfx.Geometry(positions=pc, colors=colors)
+            
+            geometry = gfx.Geometry(positions=pc.astype(np.float32), colors=colors)
             material = gfx.PointsMaterial(color_mode="vertex", size=1,pick_write=True)
             points = PointCloud(geometry,material)
             points.name = os.path.basename(file_path)
             points.label.visible = False
-            # points.local.position = origin + offset - self.src_obj.local.position
+            points.local.position = origin + offset
+            self.src_obj.add(points)
             objs.append(points)
-
-        self.src_obj.add(*objs)
         return objs

@@ -63,9 +63,9 @@ class Panel (Gtk.Paned):
             return
         
         item = self.selection_model.get_item(self.cur_item_index).get_item()
-        # self.spin_x.set_value(item.obj.local.x)
-        # self.spin_y.set_value(item.obj.local.y)
-        # self.spin_z.set_value(item.obj.local.z)
+        self.spin_x.set_value(item.obj.local.x)
+        self.spin_y.set_value(item.obj.local.y)
+        self.spin_z.set_value(item.obj.local.z)
 
         if type(item.obj) == PointCloud:
             self.expander_position.set_visible(True)
