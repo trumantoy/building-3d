@@ -177,14 +177,7 @@ class PointCloud(gfx.Points):
         
         if self.geometry:
             aabb = self.get_bounding_box()
-            pc = self.geometry.positions.data
-            x, y, z = pc[:, 0], pc[:, 1], pc[:, 2]
-            aabb = [[x.min(),y.min(),z.min()],[x.max(),y.max(),z.max()]]            
-            offset = [(x.max()-x.min())/2,(y.max()-y.min())/2,0]
-            origin = np.array([np.min(x),np.min(y),0])
-
             self.bounding_box.geometry = gfx.box_geometry(aabb[1][0] - aabb[0][0],aabb[1][1] - aabb[0][1],aabb[1][2] - aabb[0][2])
-            self.bounding_box.local.position = origin + offset
             self.bounding_box.local.z = (aabb[1][2] - aabb[0][2])  / 2
 
     def set_bounding_box_visible(self, visible : bool):
@@ -307,6 +300,14 @@ class Building(gfx.Mesh):
         super().__init__(*args,**kwargs)
 
         self.assessment = None
+        self.bounding_box = gfx.Mesh(gfx.box_geometry(0.1,0.1,0.1),gfx.MeshBasicMaterial(color='#87CEEB'))
+        self.add(self.bounding_box)
+        self.set_bounding_box_visible(False)
+        
+        if self.geometry:
+            aabb = self.get_bounding_box()
+            self.bounding_box.geometry = gfx.box_geometry(aabb[1][0] - aabb[0][0],aabb[1][1] - aabb[0][1],aabb[1][2] - aabb[0][2])
+            self.bounding_box.local.z = (aabb[1][2] - aabb[0][2])  / 2
         
     def step(self,dt):
         pass
@@ -325,6 +326,10 @@ class Building(gfx.Mesh):
         aabb = self.get_bounding_box()
         self.assessment_text.local.position = [0,0,aabb[1][2] + 10]
         self.add(self.assessment_text)
+
+    def set_bounding_box_visible(self, visible : bool):
+        self.bounding_box.material.opacity = 0.2 if visible else 0.0
+        
 
 
 class Triangle(gfx.Mesh):

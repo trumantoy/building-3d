@@ -76,7 +76,7 @@ class Panel (Gtk.Paned):
             self.expander_position.set_visible(True)
             self.expander_pointcloud.set_visible(False)
             self.expander_mesh.set_visible(True)
-            item = None
+            item.obj.set_bounding_box_visible(True)
         else:
             self.expander_position.set_visible(False)
             self.expander_pointcloud.set_visible(False)

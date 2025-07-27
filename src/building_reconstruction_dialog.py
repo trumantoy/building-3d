@@ -67,14 +67,16 @@ class BuildingReconstructionDialog (Gtk.Window):
         os.makedirs(roof_input_dir,exist_ok=True)
         os.makedirs(building_output_dir,exist_ok=True)
         os.makedirs(roof_output_dir,exist_ok=True)
+        self.positions = dict()
+        
         count = 0
         for i, sub_obj in enumerate(obj.children):
             if type(sub_obj) != PointCloud:
                 continue
             name = os.path.splitext(sub_obj.name)[0]
-
+            self.positions[name] = sub_obj.local.position
             count+=1
-            points = sub_obj.geometry.positions.data + sub_obj.local.position
+            points = sub_obj.geometry.positions.data
             roof_points, building_points = extract_roof_by_z_density(points)
             if roof_points is None: continue
             np.savetxt(os.path.join(building_input_dir, f'{name}.xyz'), building_points)
@@ -96,13 +98,7 @@ class BuildingReconstructionDialog (Gtk.Window):
             mesh = gfx.load_mesh(file_path)[0]
 
             pc = mesh.geometry.positions.data
-            x, y, z = pc[:, 0], pc[:, 1], pc[:, 2]
-            offset = [(x.max()-x.min())/2,(y.max()-y.min())/2,0]
-            origin = np.array([np.min(x),np.min(y),0])
-            x = x - np.min(x)
-            y = y - np.min(y)
-            z = z
-            pc = np.column_stack([x,y,z]) - [(x.max()-x.min())/2,(y.max()-y.min())/2,0]
+          
             mesh.geometry.positions.data[:] = pc.astype(np.float32)
             mesh.material.side = gfx.VisibleSide.both
             mesh.material.color = (0.8, 0.8, 0.8)  # 设置材质颜色为白色
@@ -115,9 +111,9 @@ class BuildingReconstructionDialog (Gtk.Window):
             building = Building()
             building.geometry = mesh.geometry
             building.material = mesh.material
-            building.local.position = origin + offset
             building.name = os.path.basename(file_path)
             name = os.path.splitext(building.name)[0]
+            building.local.position = self.positions[name]
             roof_file_path = os.path.join(self.roof_output_dir, f'{name}.obj')
 
             if not os.path.exists(roof_file_path):

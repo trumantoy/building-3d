@@ -147,7 +147,7 @@
                                                             </object>
                                                         </property>
                                                         <property name="climb_rate">1</property>
-                                                        <signal name="value-changed" handler="x_value_changed"/>
+                                                        <!-- <signal name="value-changed" handler="x_value_changed"/> -->
                                                     </object>
                                                 </child>
                                             </object>
@@ -177,7 +177,7 @@
                                                             </object>
                                                         </property>
                                                         <property name="climb_rate">1</property>
-                                                        <signal name="value-changed" handler="y_value_changed"/>
+                                                        <!-- <signal name="value-changed" handler="y_value_changed"/> -->
                                                     </object>
                                                 </child>
                                             </object>
@@ -207,7 +207,7 @@
                                                             </object>
                                                         </property>
                                                         <property name="climb_rate">1</property>
-                                                        <signal name="value-changed" handler="z_value_changed"/>
+                                                        <!-- <signal name="value-changed" handler="z_value_changed"/> -->
                                                     </object>
                                                 </child>
                                             </object>
