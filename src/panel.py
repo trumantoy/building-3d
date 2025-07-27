@@ -32,6 +32,7 @@ class Panel (Gtk.Paned):
         self.selection_model.set_autoselect(False)
         self.selection_model.set_can_unselect(True)
         self.cur_item_index = Gtk.INVALID_LIST_POSITION
+        self.selected_obj = None
 
         factory = Gtk.SignalListItemFactory()
         factory.connect("setup", self.setup_listitem)
@@ -172,21 +173,31 @@ class Panel (Gtk.Paned):
 
         expander.set_list_row(tree_row)
         label.set_label(tree_item.obj.name)
+        tree_item.widget = list_item
 
         if tree_item.model.get_n_items():
             expander.set_hide_expander(False)
         else:
             expander.set_hide_expander(True)
 
-    def add(self, obj):
+    def pick(self,event):
+        info = event.pick_info
+        print(info)
+
+        if self.selected_obj:
+            self.selected_obj.set_bounding_box_visible(False)
+
+        self.selected_obj = info["world_object"]
+        self.selected_obj.set_bounding_box_visible(True)
+
+    def add(self, obj : WorldObject):
         item = GObject.Object()
         item.obj = obj
         item.model = Gio.ListStore(item_type=GObject.Object)
         self.model.append(item)
 
-        if self.model.get_n_items() == 1:
-            self.selection_model.set_selected(0)
-
+        obj.material.pick_write = True
+        # obj.add_event_handler(self.pick,'pointer_down')
         return item
     
     def add_sub(self,item,objs):

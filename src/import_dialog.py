@@ -61,7 +61,7 @@ class ImportDialog (Gtk.Window):
 
                     geometry = gfx.Geometry(positions=points.astype(np.float32), colors=colors)
                     material = gfx.PointsMaterial(color_mode="vertex", size=1)
-                    obj = PointCloud(geometry, material)
+                    obj = PointCloud(geometry, material,pick_write=True)
                     obj.name = file_name
                     editor.add(obj)
                     item = panel.add(obj)
@@ -78,7 +78,7 @@ class ImportDialog (Gtk.Window):
                     colors = np.frombuffer(colors_data, dtype=np.float32).reshape(-1, 3)
 
                     geometry = gfx.Geometry(positions=points.astype(np.float32), colors=colors)
-                    material = gfx.PointsMaterial(color_mode="vertex", size=1)
+                    material = gfx.PointsMaterial(color_mode="vertex", size=1,pick_write=True)
                     sub_obj = PointCloud(geometry, material)
                     sub_obj.name = file_name
     
@@ -107,6 +107,7 @@ class ImportDialog (Gtk.Window):
                     mesh.material.specular = (0.0, 0.0, 0.0, 1.0)  # 降低高光色
                     mesh.material.emissive = (0.8, 0.8, 0.8)  # 设置微弱自发光
                     mesh.material.flat_shading = True  # 启用平面着色
+                    mesh.material.pick_write = True
 
                     building = Building()
                     building.geometry = mesh.geometry

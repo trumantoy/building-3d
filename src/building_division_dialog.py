@@ -112,7 +112,7 @@ class BuildingDivisionDialog (Gtk.Window):
             colors = np.array([colorsys.hsv_to_rgb(h, saturation, value) for h in hsv_hues], dtype=np.float32)
 
             geometry = gfx.Geometry(positions=pc, colors=colors)
-            material = gfx.PointsMaterial(color_mode="vertex", size=1)
+            material = gfx.PointsMaterial(color_mode="vertex", size=1,pick_write=True)
             points = PointCloud(geometry,material)
             points.name = os.path.basename(file_path)
             points.label.visible = False

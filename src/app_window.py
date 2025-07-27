@@ -30,6 +30,8 @@ class AppWindow (Gtk.ApplicationWindow):
     viewbar : Viewbar = Gtk.Template.Child('viewbar')
 
     def __init__(self):
+        self.picked_obj = None
+
         self.editor = Editor()
         self.ortho_camera = gfx.OrthographicCamera()
         self.ortho_camera.local.position = [0,0,10]
@@ -59,7 +61,9 @@ class AppWindow (Gtk.ApplicationWindow):
         click_controller.set_button(1)
         click_controller.connect("pressed", lambda sender,n_press,x,y: 
                                     self.renderer.convert_event(dict(event_type='pointer_down',x=x ,y=y,button=1,buttons=(1,),time_stamp=time.perf_counter())) or 
-                                    self.renderer.convert_event(dict(event_type='pointer_up',x=x ,y=y,button=1,buttons=(1,),time_stamp=time.perf_counter())))
+                                    self.renderer.convert_event(dict(event_type='pointer_up',x=x ,y=y,button=1,buttons=(1,),time_stamp=time.perf_counter())) or
+                                    self.pick(x,y)
+                                    )
 
         rotation_controller = Gtk.GestureClick.new()
         rotation_controller.set_button(2)
@@ -123,6 +127,18 @@ class AppWindow (Gtk.ApplicationWindow):
         from building_assessment_dialog import BuildingAssessmentDialog
         self.assessment_dlg = BuildingAssessmentDialog()
         self.assessment_dlg.set_transient_for(self)  # 设置父窗口
+
+    def pick(self,x,y):
+        info = self.renderer.get_pick_info([x,y])
+        
+        if self.picked_obj:
+            self.picked_obj.set_bounding_box_visible(False)
+
+        obj = info['world_object']
+        if obj:
+            obj.set_bounding_box_visible(True)
+        
+        self.picked_obj = obj
 
     def draw(self,receiver, cr, area_w, area_h, editor : Editor):
         width,height = self.canvas.get_physical_size()

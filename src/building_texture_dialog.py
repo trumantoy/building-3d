@@ -105,6 +105,7 @@ class BuildingTextureDialog (Gtk.Window):
             mesh.material.specular = (0.0, 0.0, 0.0, 1.0)  # 降低高光色
             mesh.material.emissive = (0.8, 0.8, 0.8)  # 设置微弱自发光
             mesh.material.flat_shading = True  # 启用平面着色
+            mesh.material.pick_write = True
 
             building = Building()
             building.geometry = mesh.geometry
