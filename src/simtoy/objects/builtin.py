@@ -170,10 +170,24 @@ class PointCloud(gfx.Points):
         )
 
         self.add(self.label)
-        
-        self.bounding_box = gfx.Mesh(gfx.box_geometry(0.1,0.1,0.1),gfx.MeshBasicMaterial(color='#87CEEB'))
+
+        self.bounding_box = gfx.Mesh(gfx.box_geometry(0.1,0.1,0.1),gfx.MeshBasicMaterial(color='#87CEEB',pick_write=True))
         self.add(self.bounding_box)
         self.set_bounding_box_visible(False)
+        
+        if self.geometry:
+            aabb = self.get_bounding_box()
+            self.bounding_box.geometry = gfx.box_geometry(aabb[1][0] - aabb[0][0],aabb[1][1] - aabb[0][1],aabb[1][2] - aabb[0][2])
+            self.bounding_box.local.z = (aabb[1][2] - aabb[0][2])  / 2
+
+        if self.material:
+           self.material.pick_write = True
+
+        def distort_geometry(event):
+            info = event.pick_info
+            print(info)
+
+        self.add_event_handler(distort_geometry, "pointer_down")
 
     def set_bounding_box_visible(self, visible : bool):
         self.bounding_box.material.opacity = 0.2 if visible else 0.0
@@ -229,7 +243,7 @@ class PointCloud(gfx.Points):
             colors = np.array([colorsys.hsv_to_rgb(h, saturation, value) for h in hsv_hues], dtype=np.float32)
 
         self.geometry = gfx.Geometry(positions=positions.astype(np.float32), colors=colors)
-        self.material = gfx.PointsMaterial(color_mode="vertex", size=1)
+        self.material = gfx.PointsMaterial(color_mode="vertex", size=1, pick_write=True)
 
         aabb = self.get_bounding_box()
         self.bounding_box.geometry = gfx.box_geometry(aabb[1][0] - aabb[0][0],aabb[1][1] - aabb[0][1],aabb[1][2] - aabb[0][2])

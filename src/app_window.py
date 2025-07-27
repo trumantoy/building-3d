@@ -24,7 +24,7 @@ class AppWindow (Gtk.ApplicationWindow):
     __gtype_name__ = "AppWindow"
 
     stack : Gtk.Stack = Gtk.Template.Child('panel')
-    widget : Gtk.DrawingArea = Gtk.Template.Child('widget')
+    area : Gtk.DrawingArea = Gtk.Template.Child('widget')
     actionbar : Actionbar = Gtk.Template.Child('actionbar')
     hotbar : Hotbar = Gtk.Template.Child('hotbar')
     viewbar : Viewbar = Gtk.Template.Child('viewbar')
@@ -42,41 +42,43 @@ class AppWindow (Gtk.ApplicationWindow):
         self.canvas = wgpu.gui.offscreen.WgpuCanvas(size=(1024,768))
         self.renderer = gfx.renderers.WgpuRenderer(self.canvas)
         self.view_controller = gfx.OrbitController()
-        self.view_controller.register_events(self.renderer)
+
         self.view_controller.add_camera(self.persp_camera)
         self.view_controller.add_camera(self.ortho_camera)
 
         self.panel : Panel = self.stack.get_visible_child()
-        self.widget.set_draw_func(self.draw, self.editor)
+        self.area.set_draw_func(self.draw, self.editor)
         self.viewbar.set_controller(self.view_controller)
-        self.hotbar.set_viewbar(self.widget, self.viewbar, self.panel, self.editor)
+        self.hotbar.set_viewbar(self.area, self.viewbar, self.panel, self.editor)
         self.panel.set_viewbar(self.viewbar)
 
         zoom_controller = Gtk.EventControllerScroll.new(Gtk.EventControllerScrollFlags(Gtk.EventControllerScrollFlags.VERTICAL))
-        zoom_controller.connect("scroll", lambda sender,dx,dy: self.renderer.dispatch_event(gfx.WheelEvent('wheel',dx=0.0,dy=dy*100,x=0,y=0,time_stamp=time.perf_counter())))
+        zoom_controller.connect("scroll", lambda sender,dx,dy: self.renderer.convert_event(dict(event_type='wheel',dx=0.0,dy=dy*100,x=0,y=0,time_stamp=time.perf_counter())))
         
-        # click_controller = Gtk.GestureClick.new()
-        # click_controller.set_button(1)
-        # click_controller.connect("pressed", lambda sender,n_press,x,y: self.renderer.dispatch_event(gfx.PointerEvent('pointer_down',x=x ,y=y,button=3,buttons=(3,),time_stamp=time.perf_counter())))
-        # click_controller.connect("released", lambda sender,n_press,x,y: self.renderer.dispatch_event(gfx.PointerEvent('pointer_up',x=x ,y=y,button=3,buttons=(3,),time_stamp=time.perf_counter())))
+        click_controller = Gtk.GestureClick.new()
+        click_controller.set_button(1)
+        click_controller.connect("pressed", lambda sender,n_press,x,y: 
+                                    self.renderer.convert_event(dict(event_type='pointer_down',x=x ,y=y,button=1,buttons=(1,),time_stamp=time.perf_counter())) or 
+                                    self.renderer.convert_event(dict(event_type='pointer_up',x=x ,y=y,button=1,buttons=(1,),time_stamp=time.perf_counter())))
 
         rotation_controller = Gtk.GestureClick.new()
         rotation_controller.set_button(2)
-        rotation_controller.connect("pressed", lambda sender,n_press,x,y: self.renderer.dispatch_event(gfx.PointerEvent('pointer_down',x=x ,y=y,button=1,buttons=(1,),time_stamp=time.perf_counter())))
-        rotation_controller.connect("released", lambda sender,n_press,x,y: self.renderer.dispatch_event(gfx.PointerEvent('pointer_up',x=x ,y=y,button=1,buttons=(1,),time_stamp=time.perf_counter())))
+        rotation_controller.connect("pressed", lambda sender,n_press,x,y: self.renderer.convert_event(dict(event_type='pointer_down',x=x ,y=y,button=1,buttons=(1,),time_stamp=time.perf_counter())))
+        rotation_controller.connect("released", lambda sender,n_press,x,y: self.renderer.convert_event(dict(event_type='pointer_up',x=x ,y=y,button=1,buttons=(1,),time_stamp=time.perf_counter())))
 
         pan_controller = Gtk.GestureClick.new()
         pan_controller.set_button(3)
-        pan_controller.connect("pressed", lambda sender,n_press,x,y: self.renderer.dispatch_event(gfx.PointerEvent('pointer_down',x=x,y=y,button=2,buttons=(2,),time_stamp=time.perf_counter())))
-        pan_controller.connect("released", lambda sender,n_press,x,y: self.renderer.dispatch_event(gfx.PointerEvent('pointer_up',x=x,y=y,button=2,buttons=(2,),time_stamp=time.perf_counter())))
+        pan_controller.connect("pressed", lambda sender,n_press,x,y: self.renderer.convert_event(dict(event_type='pointer_down',x=x,y=y,button=2,buttons=(2,),time_stamp=time.perf_counter())))
+        pan_controller.connect("released", lambda sender,n_press,x,y: self.renderer.convert_event(dict(event_type='pointer_up',x=x,y=y,button=2,buttons=(2,),time_stamp=time.perf_counter())))
 
         motion_controller = Gtk.EventControllerMotion()
-        motion_controller.connect("motion", lambda sender,x,y: self.renderer.dispatch_event(gfx.PointerEvent('pointer_move',x=x ,y=y,time_stamp=time.perf_counter())))
+        motion_controller.connect("motion", lambda sender,x,y: self.renderer.convert_event(dict(event_type='pointer_move',x=x ,y=y,time_stamp=time.perf_counter())))
 
-        if rotation_controller: self.add_controller(rotation_controller)
-        if pan_controller: self.add_controller(pan_controller)
-        if zoom_controller: self.add_controller(zoom_controller)
-        if motion_controller: self.add_controller(motion_controller)
+        if click_controller: self.area.add_controller(click_controller)
+        if rotation_controller: self.area.add_controller(rotation_controller)
+        if pan_controller: self.area.add_controller(pan_controller)
+        if zoom_controller: self.area.add_controller(zoom_controller)
+        if motion_controller: self.area.add_controller(motion_controller)
 
         action = Gio.SimpleAction.new('import', None)
         action.connect('activate', self.file_import)
@@ -129,6 +131,7 @@ class AppWindow (Gtk.ApplicationWindow):
             self.canvas = wgpu.gui.offscreen.WgpuCanvas(size=(area_w,area_h))
             self.renderer = gfx.renderers.WgpuRenderer(self.canvas)
             self.view_controller.register_events(self.renderer)
+            
 
         if '透视' == self.viewbar.view_mode.get_label():
             self.renderer.render(self.editor, self.persp_camera)
@@ -195,8 +198,8 @@ class AppWindow (Gtk.ApplicationWindow):
 
             try:
                 file = dialog.save_finish(result)
-                file_path = file.get_path()       
-                file_name = file.get_basename()         
+                file_path = file.get_path()
+                file_name = file.get_basename()
             except:
                 return
             
