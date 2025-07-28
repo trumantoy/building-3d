@@ -174,13 +174,11 @@ class PointCloud(gfx.Points):
         self.bounding_box = gfx.Mesh(gfx.box_geometry(0.1,0.1,0.1),gfx.MeshBasicMaterial(color='#87CEEB'))
         self.add(self.bounding_box)
         self.set_bounding_box_visible(False)
-        
-        if self.geometry:
-            aabb = self.get_bounding_box()
-            self.bounding_box.geometry = gfx.box_geometry(aabb[1][0] - aabb[0][0],aabb[1][1] - aabb[0][1],aabb[1][2] - aabb[0][2])
-            self.bounding_box.local.z = (aabb[1][2] - aabb[0][2])  / 2
 
     def set_bounding_box_visible(self, visible : bool):
+        aabb = self.get_bounding_box()
+        self.bounding_box.geometry = gfx.box_geometry(aabb[1][0] - aabb[0][0],aabb[1][1] - aabb[0][1],aabb[1][2] - aabb[0][2])
+        self.bounding_box.local.z = (aabb[1][2] - aabb[0][2])  / 2
         self.bounding_box.material.opacity = 0.2 if visible else 0.0
 
     @property
@@ -235,10 +233,6 @@ class PointCloud(gfx.Points):
 
         self.geometry = gfx.Geometry(positions=positions.astype(np.float32), colors=colors)
         self.material = gfx.PointsMaterial(color_mode="vertex", size=1, pick_write=True)
-
-        aabb = self.get_bounding_box()
-        self.bounding_box.geometry = gfx.box_geometry(aabb[1][0] - aabb[0][0],aabb[1][1] - aabb[0][1],aabb[1][2] - aabb[0][2])
-        self.bounding_box.local.z = (aabb[1][2] - aabb[0][2])  / 2
 
     # def set_height(self,height):
     #     self.geometry = gfx.box_geometry(1,1,height)
@@ -303,12 +297,7 @@ class Building(gfx.Mesh):
         self.bounding_box = gfx.Mesh(gfx.box_geometry(0.1,0.1,0.1),gfx.MeshBasicMaterial(color='#87CEEB'))
         self.add(self.bounding_box)
         self.set_bounding_box_visible(False)
-        
-        if self.geometry:
-            aabb = self.get_bounding_box()
-            self.bounding_box.geometry = gfx.box_geometry(aabb[1][0] - aabb[0][0],aabb[1][1] - aabb[0][1],aabb[1][2] - aabb[0][2])
-            self.bounding_box.local.z = (aabb[1][2] - aabb[0][2])  / 2
-        
+                
     def step(self,dt):
         pass
 
@@ -328,6 +317,9 @@ class Building(gfx.Mesh):
         self.add(self.assessment_text)
 
     def set_bounding_box_visible(self, visible : bool):
+        aabb = self.get_bounding_box()
+        self.bounding_box.geometry = gfx.box_geometry(aabb[1][0] - aabb[0][0],aabb[1][1] - aabb[0][1],aabb[1][2] - aabb[0][2])
+        self.bounding_box.local.z = (aabb[1][2] - aabb[0][2])  / 2
         self.bounding_box.material.opacity = 0.2 if visible else 0.0
         
 

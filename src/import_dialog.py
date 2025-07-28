@@ -60,8 +60,8 @@ class ImportDialog (Gtk.Window):
                     colors = np.frombuffer(colors_data, dtype=np.float32).reshape(-1, 3)
 
                     geometry = gfx.Geometry(positions=points.astype(np.float32), colors=colors)
-                    material = gfx.PointsMaterial(color_mode="vertex", size=1)
-                    obj = PointCloud(geometry, material,pick_write=True)
+                    material = gfx.PointsMaterial(color_mode="vertex", size=1,pick_write=True)
+                    obj = PointCloud(geometry, material)
                     obj.name = file_name
                     editor.add(obj)
                     item = panel.add(obj)
